@@ -7,8 +7,10 @@
 % Enemy Shooting
 % Eliminate processes
 %%%%% Bonus %%%%%
-% Add sitting animations 
-View.Set("graphics:1260,900,offscreenonly") % Release 
+% Add sitting animations
+
+%When an enemy sees player save their location and navigate to it then search or return to loop
+View.Set("graphics:1260,900,offscreenonly") % Release
 
 var numFrames := Pic.Frames ("walkGIFbluetrans.gif")
 var numFramesEnemy := Pic.Frames ("walkGIFbluetransEnemy.gif")
@@ -33,13 +35,15 @@ var ratio, angle : real
 var font1 : int := Font.New("serif:12")
 var playerFrame : int := 1
 var enemyFrame : int := 1
-var enemyX : int := 375
-var enemyY : int := 700
+var enemyPos : array 1 .. 3,1 .. 2 of int
+enemyPos(1,1) := 375
+enemyPos(1,2) := 700
 var sightRange : int := 300
 var dist : real
+var playerRoom : string
 speed := 2
-x := -942 
-y := 359 
+x := -942
+y := 359
 
 
 Pic.FileNewFrames ("walkGIFbluetrans.gif", pics, delayTime)
@@ -59,7 +63,7 @@ end for
     for c : 1 .. numFramesEnemy
     enemySprite270(c) := Pic.Rotate(enemySprite(c),270,-1,-1)
 end for
-    
+
 for c : 1 .. numFrames
     pics180(c) := Pic.Rotate(pics(c),180,-1,-1)
 end for
@@ -81,48 +85,46 @@ end for
     for c : 1 .. numFrames
     pics315(c) := Pic.Rotate(pics(c),315,-1,-1)
 end for
-    
 
-function whatAngle (xvalue, yvalue : int) : int 
+
+function whatAngle (xvalue, yvalue : int) : int
     mousewhere(mousex, mousey, button)
     mousex -= xvalue
-    mousey -= yvalue 
-    if mousex not= 0 then 
-        ratio := mousey / mousex 
-    else 
-        ratio := mousey / 0.001 
-    end if 
-    angle := arctand (abs (ratio)) 
-    if mousex < 0 then 
-        angle := 180 - angle 
-    end if 
-    if mousey < 0 then 
-        angle := 360 - angle 
-    end if 
-    result round (angle) 
-end whatAngle 
+    mousey -= yvalue
+    if mousex not= 0 then
+        ratio := mousey / mousex
+    else
+        ratio := mousey / 0.001
+    end if
+    angle := arctand (abs (ratio))
+    if mousex < 0 then
+        angle := 180 - angle
+    end if
+    if mousey < 0 then
+        angle := 360 - angle
+    end if
+    result round (angle)
+end whatAngle
 
 function whatAngleEnemy (xvalue, yvalue : int) : int
     var playerX : int := maxx div 2
     var playerY : int := maxy div 2
     playerX -= xvalue
-    playerY -= yvalue 
-    if playerX not= 0 then 
+    playerY -= yvalue
+    if playerX not= 0 then
         ratio := playerY / playerX
-    else 
-        ratio := playerY / 0.001 
-    end if 
-    angle := arctand (abs (ratio)) 
-    if playerX < 0 then 
-        angle := 180 - angle 
-    end if 
-    if playerY < 0 then 
-        angle := 360 - angle 
-    end if 
-    locate(1,1)
-    put angle
-    result round (angle) 
-end whatAngleEnemy 
+    else
+        ratio := playerY / 0.001
+    end if
+    angle := arctand (abs (ratio))
+    if playerX < 0 then
+        angle := 180 - angle
+    end if
+    if playerY < 0 then
+        angle := 360 - angle
+    end if
+    result round (angle)
+end whatAngleEnemy
 
 function collisionDetect (posx,posy : int) : int %checks if the currect coordinates collide with a wall
     var newx : int := posx
@@ -230,14 +232,14 @@ procedure playerAnimate
     elsif whatAngle(maxx div 2,maxy div 2) >= 292.5 and whatAngle(maxx div 2,maxy div 2) < 337.5 then
         Sprite.ChangePic(player, pics315(playerFrame))
     end if
-    
+
     if playerFrame = 8 then
         playerFrame := 0
     end if
     playerFrame += 1
 end playerAnimate
 
-Sprite.SetPosition(enemy,enemyX,enemyY,true)
+Sprite.SetPosition(enemy,enemyPos(1,1),enemyPos(1,2),true)
 
 
 procedure enemyShoot
@@ -246,75 +248,80 @@ procedure enemyShoot
     var missX : int := Rand.Int(0,100)
     var missY : int := Rand.Int(0,100)
     if roll = 1 then
-        Draw.Line(enemyX,enemyY,maxx div 2,maxy div 2,black)
+        Draw.Line(enemyPos(1,1),enemyPos(1,2),maxx div 2,maxy div 2,black)
         locate(1,1)
-        put "You Died!"
+        %put "You Died!"
         %Animate Bullet
         %Change to dead sprite
         %Game over procedure
-    else 
+    else
         if roll2 = 1 then
-            Draw.Line(enemyX,enemyY,(maxx div 2)-missX,(maxy div 2) + missY,black)
+            Draw.Line(enemyPos(1,1),enemyPos(1,2),(maxx div 2)-missX,(maxy div 2) + missY,black)
         else
-            Draw.Line(enemyX,enemyY,(maxx div 2)+missX, (maxy div 2) - missY,black)
+            Draw.Line(enemyPos(1,1),enemyPos(1,2),(maxx div 2)+missX, (maxy div 2) - missY,black)
         end if
     end if
 end enemyShoot
 
 
 procedure enemyAnimate
-    if (chars (KEY_UP_ARROW) or chars('w')) and collisionDetect(x,y) = 0 then 
-        enemyY := enemyY - (speed * 6)
+    if (chars (KEY_UP_ARROW) or chars('w')) and collisionDetect(x,y) = 0 then
+        enemyPos(1,2) := enemyPos(1,2) - (speed * 6)
     elsif (chars (KEY_DOWN_ARROW) or chars('s')) and collisionDetect(x,y) = 0 then
-        enemyY := enemyY + (speed * 6)
+        enemyPos(1,2) := enemyPos(1,2) + (speed * 6)
     elsif (chars (KEY_LEFT_ARROW) or chars('a')) and collisionDetect(x,y) = 0 then
-        enemyX := enemyX + (speed * 6)
+        enemyPos(1,1) := enemyPos(1,1) + (speed * 6)
     elsif (chars (KEY_RIGHT_ARROW) or chars('d')) and collisionDetect(x,y) = 0 then
-        enemyX := enemyX - (speed * 6)
+        enemyPos(1,1) := enemyPos(1,1) - (speed * 6)
     end if
     %Draw.Oval(x+1300,y+900,100,100,red)
     %Sprite.ChangePic(enemy,enemySprite(enemyFrame))
     Sprite.Show(enemy)
-    if enemyY < y + 900 and enemyX > x + 1300 then % Walking up
-        enemyY += 6 % Move upwards
-        Sprite.Animate(enemy,enemySprite90(enemyFrame),enemyX,enemyY,true) %Animate
+    if enemyPos(1,2) < y + 900 and enemyPos(1,1) > x + 1300 then % Walking up
+        enemyPos(1,2) += 6 % Move upwards
+        Sprite.Animate(enemy,enemySprite90(enemyFrame),enemyPos(1,1),enemyPos(1,2),true) %Animate
         %for i : 1 .. sightRange by 3
-        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyX,enemyY,enemyX,enemyY + sightRange)
-        Draw.Line(enemyX,enemyY,enemyX,enemyY + sightRange,black)
-        if dist < sightRange and whatAngleEnemy(enemyX,enemyY) > 0 and whatAngleEnemy(enemyX,enemyY) < 180 then
+        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyPos(1,1),enemyPos(1,2),enemyPos(1,1),enemyPos(1,2) + sightRange)
+        Draw.Line(enemyPos(1,1),enemyPos(1,2),enemyPos(1,1),enemyPos(1,2) + sightRange,black)
+        put whatAngleEnemy(enemyPos(1,1),enemyPos(1,2))
+        if dist < sightRange and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) > 0 and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) < 180 then
             enemyShoot
         end if
         %end for
-    elsif enemyY > y + 900 and enemyX > x + 680 then
-        enemyX -= 6
-        Sprite.Animate(enemy,enemySprite180(enemyFrame),enemyX,enemyY,true)
-        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyX,enemyY,enemyX - sightRange,enemyY)
-        Draw.Line(enemyX,enemyY,enemyX - 300,enemyY,black)
-        if dist < sightRange and whatAngleEnemy(enemyX,enemyY) > 90 and whatAngleEnemy(enemyX,enemyY) < 270 then %if player is within range and in front on enemy he sees him
+    elsif enemyPos(1,2) > y + 900 and enemyPos(1,1) > x + 680 then
+        enemyPos(1,1) -= 6
+        Sprite.Animate(enemy,enemySprite180(enemyFrame),enemyPos(1,1),enemyPos(1,2),true)
+        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyPos(1,1),enemyPos(1,2),enemyPos(1,1) - sightRange,enemyPos(1,2))
+        Draw.Line(enemyPos(1,1),enemyPos(1,2),enemyPos(1,1) - 300,enemyPos(1,2),black)
+        put whatAngleEnemy(enemyPos(1,1),enemyPos(1,2))
+        if dist < sightRange and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) > 90 and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) < 270 then %if player is within range and in front on enemy he sees him
             enemyShoot
         end if
-    elsif enemyX <= x + 680 and enemyY > y + 320 then
-        %enemyY := enemyY - 6
-        Sprite.Animate(enemy,enemySprite270(enemyFrame),enemyX,enemyY,true)
-        enemyY -= 6
-        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyX,enemyY,enemyX,enemyY - sightRange)
-        Draw.Line(enemyX,enemyY,enemyX,enemyY - 300,black)
-        if dist < sightRange and whatAngleEnemy(enemyX,enemyY) > 180 and whatAngleEnemy(enemyX,enemyY) < 360 then %if player is within range and in front on enemy he sees him
+    elsif enemyPos(1,1) <= x + 680 and enemyPos(1,2) > y + 320 then
+        %enemy(1,2) := enemy(1,2) - 6
+        Sprite.Animate(enemy,enemySprite270(enemyFrame),enemyPos(1,1),enemyPos(1,2),true)
+        enemyPos(1,2) -= 6
+        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyPos(1,1),enemyPos(1,2),enemyPos(1,1),enemyPos(1,2) - sightRange)
+        Draw.Line(enemyPos(1,1),enemyPos(1,2),enemyPos(1,1),enemyPos(1,2) - 300,black)
+        put whatAngleEnemy(enemyPos(1,1),enemyPos(1,2))
+        if dist < sightRange and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) > 180 and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) < 360 then %if player is within range and in front on enemy he sees him
             enemyShoot
         end if
-    elsif enemyX < x + 1300 and enemyY <= y + 320 then
-        enemyX += 6
-        Sprite.Animate(enemy,enemySprite(enemyFrame),enemyX,enemyY,true)
-        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyX,enemyY,enemyX + sightRange,enemyY)
-        Draw.Line(enemyX,enemyY,enemyX + 300,enemyY,black)
-        if dist < sightRange and whatAngleEnemy(enemyX,enemyY) > 270 and whatAngleEnemy(enemyX,enemyY) < 90 then %if player is within range and in front on enemy he sees him
+    elsif enemyPos(1,1) < x + 1300 and enemyPos(1,2) <= y + 320 then
+        enemyPos(1,1) += 6
+        Sprite.Animate(enemy,enemySprite(enemyFrame),enemyPos(1,1),enemyPos(1,2),true)
+        dist := Math.DistancePointLine(maxx div 2,maxy div 2,enemyPos(1,1),enemyPos(1,2),enemyPos(1,1) + sightRange,enemyPos(1,2))
+        Draw.Line(enemyPos(1,1),enemyPos(1,2),enemyPos(1,1) + 300,enemyPos(1,2),black)
+        put whatAngleEnemy(enemyPos(1,1),enemyPos(1,2))
+        put dist < sightRange, whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) > 270
+        if dist < sightRange and whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) > 270 or  whatAngleEnemy(enemyPos(1,1),enemyPos(1,2)) < 90 then %if player is within range and in front on enemy he sees him
             enemyShoot
         end if
     else
         locate(1,1)
-        put mousex
+        put enemyPos(1,1), " and ", enemyPos(1,2)
     end if
-    
+
     if enemyFrame = 8 then
         enemyFrame := 0
     end if
@@ -323,24 +330,31 @@ procedure enemyAnimate
 end enemyAnimate
 
 % 563,623
-% 
 
 loop
+    mousewhere(mousex,mousey,button)
+    put maxx div 2 - x
+    %if enemyPos(1,1)
+    if x > -1152 and x < 10 and y > -213 and y < -141 then
+      playerRoom := "carbon2Hall"
+    elsif x > -438 and x < -360 and y < 155 and y > -1355 then
+      playerRoom := "carbon2Wood"
+    elsif x > -800 and x < 10 and y < 155 and y > -513 then
+      playerRoom := "carbon"
+    end if
     playerAnimate
     movement
     enemyAnimate
     View.Update
-    
     Sprite.SetPosition (player, maxx div 2, maxy div 2, true)
     Sprite.Show (player)
-    mousewhere(mousex,mousey,button)
     locate(1,1)
-    %put enemyX,"and",enemyY
+    %put enemy(1,1),"and",enemy(1,2)
     %put mousex + 942,"and",mousey - 359
     %put x,"and",y
-    %put dist, "dist", whatAngleEnemy(enemyX,enemyY)
+    %put dist, "dist", whatAngleEnemy(enemy(1,1),enemy(1,2))
     View.Update
     delay(50)
 end loop
-%x := -942 
-%y := 359 
+%x := -942
+%y := 359
