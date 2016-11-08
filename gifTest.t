@@ -165,8 +165,9 @@ function collisionDetect : boolean %checks if the currect coordinates collide wi
         end if
     end for
     %if moveDirection  = "x" then
-    if (postMove.x > 560+camera.x) and (postMove.x < 1530+camera.x) and (postMove.y > 215+camera.y) and (postMove.y < 288+camera.y) then % Bottom, left Brick wall
+    if (postMove.x > 560+camera.x) and (postMove.x < 1530+camera.x) and (postMove.y > 217+camera.y) and (postMove.y < 288+camera.y) then % Bottom, left Brick wall
         result true
+    /*
     elsif (postMove.x > -802) and (postMove.x < -726) and (postMove.y > -141) and (postMove.y < 160) then % Bottom, left inside wall
         result true
     elsif (postMove.x > -802) and (postMove.x < -726) and (postMove.y < -213) and (postMove.y > -1125) then % Right wall of carbon and hardwood rooms
@@ -179,12 +180,14 @@ function collisionDetect : boolean %checks if the currect coordinates collide wi
         result true
     elsif (postMove.x > -134) and (postMove.x < -48) and (postMove.y > -1403) and (postMove.y < -923) then % Left, Top wall of hardwood room
         result true
-    elsif (postMove.x > -134) and (postMove.x < -48) and (postMove.y > -843) and (postMove.y < -513) then % Left, Bottom wall of hardwood room
+    */
+    elsif (postMove.x > 271+camera.x) and (postMove.x < 985+camera.x) and (postMove.y > 952+camera.y) and (postMove.y < 1025+camera.y) then % Left, Bottom wall of hardwood room
         result true
-    elsif (postMove.x > -360) and (postMove.x < 358) and (postMove.y > -583) and (postMove.y < -513) then % Bottom, Left wall of hardwood room
+    elsif (postMove.x > 686+camera.x) and (postMove.x < 750+camera.x) and (postMove.y > 952+camera.y) and (postMove.y < 1297+camera.y) then % Bottom, Left wall of hardwood room
         result true
-    elsif (postMove.x > 10) and (postMove.x < 70) and (postMove.y > -583) and (postMove.y < 227) then % Left wall of carbon room
+    elsif (postMove.x > 560+camera.x) and (postMove.x < 631+camera.x) and (postMove.y > 217+camera.y) and (postMove.y < 1025+camera.y) then % Left wall of carbon room
         result true
+        /*
     elsif (postMove.x > 284) and (postMove.x < 358) and (postMove.y > -1797) and (postMove.y < -513) then % Right-most wall
         result true
     elsif (postMove.x > -920) and (postMove.x < 358) and (postMove.y > -1797) and (postMove.y < -1729) then % Top, Left wall
@@ -219,6 +222,7 @@ function collisionDetect : boolean %checks if the currect coordinates collide wi
         result true
     elsif (postMove.x > -1226) and (postMove.x < -716) and (postMove.y > -2179) and (postMove.y < -2089) then % Top wall of elevator
         result true
+        */
     end if
     result false
 end collisionDetect
@@ -244,12 +248,7 @@ procedure movement
     Font.Draw(playerRoom,0,540,font1,black)
     Font.Draw("Enemy X: " + intstr(enemyPos(1).x),0,510,font1,black)
     Font.Draw("Enemy Y: " + intstr(enemyPos(1).y),0,480,font1,black)
-    Draw.Box(560+camera.x,215+camera.y,1530+camera.x,288+camera.y,white)
-    Draw.Oval(maxx div 2,maxy div 2,50,50,black)
     Draw.Box(maxx div 2 - 30,maxy div 2 - 30,maxx div 2 + 30,maxy div 2 + 30,black)
-    Draw.Dot(629,455,brightred)
-    Draw.Dot(629,443,brightred)
-    %Draw.Oval(camera.x,camera.y,50,50,black)
     View.Update
 end movement
 
