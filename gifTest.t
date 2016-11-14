@@ -27,12 +27,14 @@ record
     effect :vector
 end record
 type enemy:
-    record
-        x : int
-        y : int
-        dead : boolean
-        pLast : vector
-    end record
+record
+    x : int
+    y : int
+    randMove : int
+    moveDirection : string
+    dead : boolean
+    pLast : vector
+end record
 var camera :vector :=init(0, 0)
 var shootDelay : int := Time.Elapsed
 var spongebobPos :vector := init(0, 0)
@@ -50,7 +52,7 @@ var lastEnemyFrame : int := 0
 var playerDirection : int
 var postMove : vector
     camera.x := -930
-    camera.y := 300
+camera.y := 300
 var numFrames := Pic.Frames ("walkGIFbluetrans.gif")
 var numFramesEnemy := Pic.Frames ("walkGIFbluetransEnemy.gif")
 var delayTime,delayTime2 : int
@@ -128,10 +130,10 @@ end for
     for c : 1 .. numFrames
     pics315(c) := Pic.Rotate(pics(c),315,-1,-1)
 end for
-
+    
 process gunShot
-        Music.PlayFile("_audio/shotgunFire.mp3")
-        Music.PlayFile("_audio/shotgunReload.mp3")
+    Music.PlayFile("_audio/shotgunFire.mp3")
+    Music.PlayFile("_audio/shotgunReload.mp3")
 end gunShot    
 
 function whatAngle (xvalue, yvalue : int) : int
@@ -174,9 +176,7 @@ function whatAngleEnemy (xvalue, yvalue : int) : int
 end whatAngleEnemy
 
 function collisionDetect (x,y: int) : boolean %checks if the currect coordinates collide with a wall
-    %postMove.x := camera.x
     postMove.x := x
-    %postMove.y := camera.y
     postMove.y := y
     Input.KeyDown(key)
     for i : 1 .. upper(inputEffects)
@@ -185,7 +185,7 @@ function collisionDetect (x,y: int) : boolean %checks if the currect coordinates
             postMove.y -= inputEffects(i).effect.y
         end if
     end for
-        %if moveDirection  = "x" then
+        
     if (postMove.x > 560+camera.x) and (postMove.x < 1530+camera.x) and (postMove.y > 217+camera.y) and (postMove.y < 288+camera.y) then % Bottom, left Brick wall
         result true
     elsif (postMove.x > 686+camera.x) and (postMove.x < 750+camera.x) and (postMove.y > 1384+camera.y) and (postMove.y < 1857+camera.y) then % Left, Top wall of hardwood
@@ -337,9 +337,72 @@ procedure enemyShoot
     end if
 end enemyShoot
 
+enemy1.moveDirection := "null"
+
+proc AISearch (var enemyNum : enemy)
+    %Sprite.SetPosition(enemySPR,500-camera.x,500-camera.y,true)
+    Sprite.Show(enemySPR)
+    Sprite.SetHeight(enemySPR,2)
+    enemyNum.randMove := Rand.Int(1,4)
+    if enemyNum.moveDirection = "null" then
+        if enemyNum.randMove = 1 then
+            if collisionDetect(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y+20) = false then
+                enemyNum.moveDirection := "up"
+            end if
+        elsif enemyNum.randMove = 2 then
+            if collisionDetect(enemyPos(1).x+camera.x+20,enemyPos(1).y+camera.y) = false then
+                enemyNum.moveDirection := "right"
+            end if
+        elsif enemyNum.randMove = 3 then
+            if collisionDetect(enemyPos(1).x+camera.x-20,enemyPos(1).y+camera.y) = false then
+                enemyNum.moveDirection := "left"
+            end if
+        elsif enemyNum.randMove = 4 then
+            if collisionDetect(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y-20) = false then
+                enemyNum.moveDirection:= "down"
+            end if
+        end if
+    end if
+    if enemyNum.moveDirection = "right" then
+        if collisionDetect(enemyPos(1).x+camera.x+20,enemyPos(1).y+camera.y) = false then
+            Sprite.Animate(enemySPR,enemySprite(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
+            enemyPos(1).x += 2
+        else
+            enemyNum.moveDirection := "null"
+        end if
+    elsif enemyNum.moveDirection = "down" then
+        if collisionDetect(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y-20) = false then
+            Sprite.Animate(enemySPR,enemySprite270(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
+            enemyPos(1).y -= 2
+        else
+            enemyNum.moveDirection := "null"
+        end if
+    elsif enemyNum.moveDirection = "up" then
+        if collisionDetect(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y+20) = false then
+            Sprite.Animate(enemySPR,enemySprite90(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
+            enemyPos(1).y += 2
+        else
+            enemyNum.moveDirection := "null"
+        end if
+    elsif enemyNum.moveDirection = "left" then
+        if collisionDetect(enemyPos(1).x+camera.x-20,enemyPos(1).y+camera.y) = false then
+            Sprite.Animate(enemySPR,enemySprite180(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
+            enemyPos(1).x -= 2
+        else
+            enemyNum.moveDirection := "null"
+        end if
+    end if
+    if Time.Elapsed - lastEnemyFrame > 100 then
+        lastEnemyFrame := Time.Elapsed
+        if enemyFrame = 8 then
+            enemyFrame := 0
+        end if
+        enemyFrame += 1
+    end if
+end AISearch
 
 procedure enemyAnimate
-    if enemyDead = false then
+    if enemyDead = false and key('v')=false then
         Sprite.SetPosition(enemySPR,500-camera.x,500-camera.y,true)
         Sprite.Show(enemySPR)
         Sprite.SetHeight(enemySPR,2)
@@ -376,63 +439,63 @@ procedure enemyAnimate
 end enemyAnimate
 
 proc playerShoot
-    fork gunShot
+    %fork gunShot
     if shootDirection not= playerDirection and shootDirection not= 0 then
         playerDirection := shootDirection
     end if
-        Sprite.Show(bulletSPR)
-        Sprite.Animate(bulletSPR,bulletIMG,bulletPos(1).x,bulletPos(1).y,true)
-        if playerDirection = 1 then
-            shootDirection := 1
-            bulletPos(1).x += 50
-            if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x-10,bulletPos(1).y) then
-                shoot:= false
-                bulletPos(1).x := maxx div 2
-                Sprite.Hide(bulletSPR)
-                shootDirection := 0
-            end if
-        elsif playerDirection = 2 then
-            shootDirection := 2
-            bulletPos(1).y += 50
-            bulletPos(1).x += 50
-            if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x-20,bulletPos(1).y) then
-                shoot:= false
-                bulletPos(1).y := maxy div 2
-                bulletPos(1).x := maxx div 2
-                Sprite.Hide(bulletSPR)
-                shootDirection := 0
-            end if
-        elsif playerDirection = 3 then
-            shootDirection := 3
-            bulletPos(1).y += 50
-            if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x,bulletPos(1).y-50) then
-                shoot:= false
-                bulletPos(1).y := maxy div 2
-                Sprite.Hide(bulletSPR)
-                shootDirection := 0
-            end if
-        elsif playerDirection = 4 then
-            shootDirection := 4
-            bulletPos(1).x -= 50
-            bulletPos(1).y += 50
-            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y-50) then
-                shoot:= false
-                bulletPos(1).x := maxx div 2
-                bulletPos(1).y := maxy div 2
-                Sprite.Hide(bulletSPR)
-                shootDirection := 0
-            end if 
-        elsif playerDirection = 5 then
-            shootDirection := 5
-            bulletPos(1).x -= 50
-            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y) then
-                shoot:= false
-                bulletPos(1).x := maxx div 2
-                Sprite.Hide(bulletSPR)
-                shootDirection := 0
-            end if 
+    Sprite.Show(bulletSPR)
+    Sprite.Animate(bulletSPR,bulletIMG,bulletPos(1).x,bulletPos(1).y,true)
+    if playerDirection = 1 then
+        shootDirection := 1
+        bulletPos(1).x += 50
+        if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x-10,bulletPos(1).y) then
+            shoot:= false
+            bulletPos(1).x := maxx div 2
+            Sprite.Hide(bulletSPR)
+            shootDirection := 0
         end if
-   
+    elsif playerDirection = 2 then
+        shootDirection := 2
+        bulletPos(1).y += 50
+        bulletPos(1).x += 50
+        if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x-20,bulletPos(1).y) then
+            shoot:= false
+            bulletPos(1).y := maxy div 2
+            bulletPos(1).x := maxx div 2
+            Sprite.Hide(bulletSPR)
+            shootDirection := 0
+        end if
+    elsif playerDirection = 3 then
+        shootDirection := 3
+        bulletPos(1).y += 50
+        if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x,bulletPos(1).y-50) then
+            shoot:= false
+            bulletPos(1).y := maxy div 2
+            Sprite.Hide(bulletSPR)
+            shootDirection := 0
+        end if
+    elsif playerDirection = 4 then
+        shootDirection := 4
+        bulletPos(1).x -= 50
+        bulletPos(1).y += 50
+        if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y-50) then
+            shoot:= false
+            bulletPos(1).x := maxx div 2
+            bulletPos(1).y := maxy div 2
+            Sprite.Hide(bulletSPR)
+            shootDirection := 0
+        end if 
+    elsif playerDirection = 5 then
+        shootDirection := 5
+        bulletPos(1).x -= 50
+        if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y) then
+            shoot:= false
+            bulletPos(1).x := maxx div 2
+            Sprite.Hide(bulletSPR)
+            shootDirection := 0
+        end if 
+    end if
+    
 end playerShoot
 % 563,623
 
@@ -445,9 +508,10 @@ loop
     elsif x > -800 and x < 10 and y < 155 and y > -513 then
         playerRoom := "carbon"
     end if
+    
     playerAnimate
     movement
-    enemyAnimate
+    %enemyAnimate
     if key(' ') and (Time.Elapsed - shootDelay) > 1000 then
         shootDelay := Time.Elapsed
         shoot := true
@@ -455,6 +519,7 @@ loop
     if shoot then
         playerShoot
     end if
+    AISearch(enemy1)
     View.Update
     x:= camera.x
     y:=camera.y
