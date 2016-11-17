@@ -14,6 +14,7 @@
 
 %When an enemy sees player save their location and navigate to it then search or return to loop
 View.Set("graphics:1260,900,offscreenonly") % Release
+%View.Set("graphics:1260,900") % Release
 const mainLevel :int := Pic.FileNew("mainLevel.jpg")
 %record items for enemy : player last seen position, dead?
 type vector:
@@ -26,6 +27,7 @@ record
     input :char
     effect :vector
 end record
+
 type enemy:
 record
     x : int
@@ -35,7 +37,36 @@ record
     dead : boolean
     pLast : vector
 end record
-var camera :vector :=init(0, 0)
+
+type coordinate:
+record
+    x : int
+    y : int
+end record
+
+type box:
+record
+    start : boolean
+    goal : boolean
+    parent : int
+    leftB  : coordinate
+    rightB : coordinate
+    leftT  : coordinate
+    rightT : coordinate
+    wall   : boolean
+end record
+
+type arrayElement:
+record
+    a : int
+    b : int
+    fScore : int
+end record
+var grid : array 6..60,5..53 of box
+var q : flexible array 1 .. 0 of arrayElement
+var closedQ : flexible array 1 .. 0 of arrayElement
+var camera : vector := init(0, 0)
+var gridUpdate : int := Time.Elapsed
 var shootDelay : int := Time.Elapsed
 var spongebobPos :vector := init(0, 0)
 var eKill1IMG : int := Pic.FileNew("enemyKill1.bmp")
@@ -108,8 +139,7 @@ end for
     for c : 1 .. numFramesEnemy
     enemySprite270(c) := Pic.Rotate(enemySprite(c),270,-1,-1)
 end for
-    
-for c : 1 .. numFrames
+    for c : 1 .. numFrames
     pics180(c) := Pic.Rotate(pics(c),180,-1,-1)
 end for
     for c : 1 .. numFrames
@@ -245,7 +275,29 @@ function collisionDetect (x,y: int) : boolean %checks if the currect coordinates
     end if
     result false
 end collisionDetect
-
+%12,5
+proc draw
+    for i : 6 .. 60
+        for j : 5 .. 53
+            grid(i,j).wall := false
+            grid(i,j).start := false
+            grid(i,j).goal := false
+            grid(i,j).leftB.x := i*50-50
+            grid(i,j).leftB.y := j*50-50
+            grid(i,j).rightB.x := i*50-50
+            grid(i,j).rightB.y := j*50
+            grid(i,j).rightT.x := i*50
+            grid(i,j).rightT.y := j*50
+            grid(i,j).leftT.x := i*50
+            grid(i,j).leftT.y :=j*50-50
+            if collisionDetect(grid(i,j).leftB.x+camera.x, grid(i,j).leftB.y+camera.y)  or collisionDetect(grid(i,j).rightB.x+camera.x,grid(i,j).rightB.y+camera.y) or collisionDetect(grid(i,j).leftT.x+camera.x,grid(i,j).leftT.y+camera.y) or collisionDetect(grid(i,j).rightT.x+camera.x,grid(i,j).rightT.y+camera.y)then
+                grid(i,j).wall := true
+            end if
+        end for
+    end for
+end draw
+draw
+    
 procedure movement
     Input.KeyDown(key)
     
@@ -267,10 +319,20 @@ procedure movement
     Font.Draw(playerRoom,0,540,font1,black)
     Font.Draw("Enemy X: " + intstr(enemyPos(1).x),0,510,font1,black)
     Font.Draw("Enemy Y: " + intstr(enemyPos(1).y),0,480,font1,black)
-    Font.Draw("Bullet Y: " + intstr(bulletPos(1).y),0,450,font1,black)
-    Font.Draw("Bullet X: " + intstr(bulletPos(1).x),0,420,font1,black)
+    Font.Draw("Bullet Y: " + intstr(grid(6,20).leftB.y),0,450,font1,black)
+    Font.Draw("Bullet X: " + intstr(grid(6,20).leftB.x),0,420,font1,black)
+    %Draw.FillBox(grid(6,20).leftB.x,grid(6,20).leftB.y,grid(6,20).leftB.x+50,grid(6,20).leftB.y+50,blue)
     Draw.Box(maxx div 2 - 30,maxy div 2 - 30,maxx div 2 + 30,maxy div 2 + 30,black)
+    for i : 6..60
+        for j : 5..53            
+            %Draw.Box(i*50-50+camera.x,j*50-50+camera.y,i*50+camera.x,j*50+camera.y,black)
+            if grid(i,j).wall then
+                Draw.FillBox(i*50-50+camera.x,j*50-50+camera.y,i*50+camera.x,j*50+camera.y,black)
+            end if
+        end for
+    end for
     View.Update
+    
 end movement
 
 procedure playerAnimate
@@ -500,6 +562,7 @@ end playerShoot
 % 563,623
 
 loop
+    %draw
     mousewhere(mousex,mousey,button)
     if x > -1152 and x < 10 and y > -213 and y < -141 then
         playerRoom := "carbon2Hall"
