@@ -61,10 +61,11 @@ record
     a : int
     b : int
     fScore : int
+    parent : coordinate
 end record
-var grid : array 6..60,5..53 of box
+var grid : array 1..60,1..53 of box
 var q : flexible array 1 .. 0 of arrayElement
-var closedQ : flexible array 1 .. 0 of arrayElement
+var searched : flexible array 1 .. 0 of arrayElement
 var camera : vector := init(0, 0)
 var gridUpdate : int := Time.Elapsed
 var shootDelay : int := Time.Elapsed
@@ -81,6 +82,7 @@ var lastInputCheck :int := 0
 var lastFrame : int := 0
 var lastEnemyFrame : int := 0
 var playerDirection : int
+var start,goal : coordinate
 var postMove : vector
     camera.x := -930
 camera.y := 300
@@ -102,6 +104,7 @@ var pics270 : array 1 .. numFrames of int
 var pics225 : array 1 .. numFrames of int
 var pics315 : array 1 .. numFrames of int
 var chars: array char of boolean
+var openX,openY : int
 var x,y, speed, mousex, mousey, button: int
 var map1 : int := Pic.FileNew("mainLevel.jpg")
 var ratio, angle : real
@@ -115,6 +118,9 @@ enemyPos(1).y := 350
 var sightRange : int := 300
 var dist : real
 var playerRoom : string := ""
+
+var initialize : boolean := true
+
 var shootDirection : int := 0
 speed := 2
 x := -942
@@ -277,19 +283,19 @@ function collisionDetect (x,y: int) : boolean %checks if the currect coordinates
 end collisionDetect
 %12,5
 proc draw
-    for i : 6 .. 60
-        for j : 5 .. 53
+    for i : 1 .. 60
+        for j : 1 .. 53
             grid(i,j).wall := false
             grid(i,j).start := false
             grid(i,j).goal := false
             grid(i,j).leftB.x := i*50-50
             grid(i,j).leftB.y := j*50-50
-            grid(i,j).rightB.x := i*50-50
-            grid(i,j).rightB.y := j*50
+            grid(i,j).rightB.x := i*50
+            grid(i,j).rightB.y := j*50-50
             grid(i,j).rightT.x := i*50
             grid(i,j).rightT.y := j*50
-            grid(i,j).leftT.x := i*50
-            grid(i,j).leftT.y :=j*50-50
+            grid(i,j).leftT.x := i*50-50
+            grid(i,j).leftT.y :=j*50
             if collisionDetect(grid(i,j).leftB.x+camera.x, grid(i,j).leftB.y+camera.y)  or collisionDetect(grid(i,j).rightB.x+camera.x,grid(i,j).rightB.y+camera.y) or collisionDetect(grid(i,j).leftT.x+camera.x,grid(i,j).leftT.y+camera.y) or collisionDetect(grid(i,j).rightT.x+camera.x,grid(i,j).rightT.y+camera.y)then
                 grid(i,j).wall := true
             end if
@@ -321,19 +327,131 @@ procedure movement
     Font.Draw("Enemy Y: " + intstr(enemyPos(1).y),0,480,font1,black)
     Font.Draw("Bullet Y: " + intstr(grid(6,20).leftB.y),0,450,font1,black)
     Font.Draw("Bullet X: " + intstr(grid(6,20).leftB.x),0,420,font1,black)
+    for i : 1..upper(searched)
+        %Font.Draw(intstr(q(i).fScore)+" "+intstr(q(i).a)+" "+intstr(q(i).b),0,630+i*30,font1,black)
+        %Font.Draw(intstr(closedQ(i).a)+" "+intstr(closedQ(i).b),0,630+i*30,font1,black)
+    end for
+    Font.Draw(intstr(upper(searched)),0,670,font1,black)
+    Draw.FillBox(grid(goal.x,goal.y).leftB.x+camera.x,grid(goal.x,goal.y).leftB.y+camera.y,grid(goal.x,goal.y).rightT.x+camera.x,grid(goal.x,goal.y).rightT.y+camera.y,yellow)
+    Font.Draw(intstr(q(lower(q)).fScore)+" "+intstr(openX)+" "+intstr(openY),0,640,font1,black)
     %Draw.FillBox(grid(6,20).leftB.x,grid(6,20).leftB.y,grid(6,20).leftB.x+50,grid(6,20).leftB.y+50,blue)
-    Draw.Box(maxx div 2 - 30,maxy div 2 - 30,maxx div 2 + 30,maxy div 2 + 30,black)
-    for i : 6..60
-        for j : 5..53            
+    %Draw.Box(maxx div 2 - 30,maxy div 2 - 30,maxx div 2 + 30,maxy div 2 + 30,black)
+    for i : 1..60
+        for j : 1..53            
             %Draw.Box(i*50-50+camera.x,j*50-50+camera.y,i*50+camera.x,j*50+camera.y,black)
             if grid(i,j).wall then
-                Draw.FillBox(i*50-50+camera.x,j*50-50+camera.y,i*50+camera.x,j*50+camera.y,black)
+                %Draw.FillBox(i*50-50+camera.x,j*50-50+camera.y,i*50+camera.x,j*50+camera.y,black)
+                %Draw.FillOval(goal.x+camera.x,goal.y+camera.y,50,50,yellow)
             end if
         end for
     end for
     View.Update
     
 end movement
+
+function contains (x,y : int, list : array 1..* of arrayElement) : boolean
+    for i : 1 .. upper(list)
+        if list(i).a = x and list(i).b = y then
+            result true
+        end if
+    end for
+        result false
+end contains
+
+proc aStar(startX,startY,goalX,goalY:int)
+    if initialize then
+        for i : 1 .. 60
+            for j : 1 .. 53
+                %put grid(i,j).leftB.x, "<=", goalX,"<", grid(i,j).rightB.x, " ", grid(i,j).leftB.y,"<=",goalY ,"<",grid(i,j).leftT.y
+                if grid(i,j).leftB.x > 1200 then
+                    %delay(100)
+                end if
+                if startX >= grid(i,j).leftB.x and startX < grid(i,j).rightB.x and startY >= grid(i,j).leftB.y and startY < grid(i,j).leftT.y then
+                    put "test"
+                    delay(500)
+                    start.x := i
+                    start.y := j
+                    grid(i,j).start := true
+                    new q, upper(q)+1
+                    q(upper(q)).a := i
+                    q(upper(q)).b := j
+                end if
+                if goalX >= grid(i,j).leftB.x and goalX < grid(i,j).rightB.x and goalY >= grid(i,j).leftB.y and goalY < grid(i,j).leftT.y then
+                    put "Goal!"
+                    delay(1000)
+                    grid(i,j).goal := true
+                    goal.x := i
+                    goal.y := j
+                end if
+            end for
+        end for
+        initialize := false
+    end if
+    %Open first item in queue and remove from list
+    openX := q(lower(q)).a
+    openY := q(lower(q)).b
+    new searched, upper(searched) + 1
+    searched(upper(searched)) := q(lower(q))
+    for i : 1 .. upper(q)-1
+        q(i) := q(i+1)
+    end for
+    new q, upper(q)-1
+    Draw.FillBox(grid(openX,openY).leftB.x+camera.x,grid(openX,openY).leftB.y+camera.y,grid(openX,openY).rightT.x+camera.x,grid(openX,openY).rightT.y+camera.y,yellow)
+    View.Update
+    %Add surrounding tiles to queue
+    %Up Tile
+    if openX+1 <= upper(grid,1) then
+        if grid(openX+1,openY). wall = false and contains(openX+1,openY,searched) = false and contains(openX+1,openY,q) = false then
+            new q, upper(q) + 1
+            q(upper(q)).a := openX + 1
+            q(upper(q)).b := openY
+            q(upper(q)).fScore := round( 2*(abs((openX+1)-goal.x) + abs(openY-goal.y)) + (abs((openX+1)-start.x) + abs(openY-start.y)))
+        end if
+    end if
+    %Down Tile
+    if openX-1 >= 1 then
+        if grid(openX-1,openY). wall = false and contains(openX-1,openY,searched) = false and contains(openX-1,openY,q) = false then
+            new q, upper(q) + 1
+            q(upper(q)).a := openX - 1
+            q(upper(q)).b := openY
+            q(upper(q)).fScore := round( 2*(abs((openX-1)-goal.x) + abs(openY-goal.y)) + (abs((openX-1)-start.x) + abs(openY-start.y)))
+        end if
+    end if
+    %Left Tile
+    if openY+1 <= upper(grid,2) then
+        if grid(openX,openY+1). wall = false and contains(openX,openY+1,searched) = false and contains(openX,openY+1,q) = false then
+            new q, upper(q) + 1
+            q(upper(q)).a := openX
+            q(upper(q)).b := openY + 1
+            q(upper(q)).fScore := round( 2*(abs(openX-goal.x) + abs((openY+1)-goal.y)) + (abs(openX-start.x) + abs((openY+1)-start.y)))
+        end if
+    end if
+    %Right Tile
+    if openY-1 >= lower(grid,1) then            
+        if grid(openX,openY-1). wall = false and contains(openX,openY-1,searched) = false and contains(openX,openY-1,q) = false then
+            new q, upper(q) + 1
+            q(upper(q)).a := openX
+            q(upper(q)).b := openY - 1
+            q(upper(q)).parent := openY 
+            q(upper(q)).fScore := round( 2*(abs(openX-goal.x) + abs((openY-1)-goal.y)) + (abs(openX-start.x) + abs((openY-1)-start.y)))
+        end if
+    end if
+    %Sort
+    var temp : arrayElement
+    for a : 1 .. upper(q)
+        for i : 1 .. (upper(q)-1)
+            if q(i).fScore > q(i+1).fScore then
+                temp := q(i)
+                q(i) := q(i+1)
+                q(i+1) := temp
+            end if
+        end for
+    end for
+        if openX = goal.x and openY = goal.y then
+        put Time.Elapsed
+        quit
+    end if
+end aStar
 
 procedure playerAnimate
     Sprite.SetPosition (player, maxx div 2, maxy div 2, true)
@@ -563,6 +681,7 @@ end playerShoot
 
 loop
     %draw
+    aStar(enemyPos(1).x,enemyPos(1).y,2001,705)
     mousewhere(mousex,mousey,button)
     if x > -1152 and x < 10 and y > -213 and y < -141 then
         playerRoom := "carbon2Hall"

@@ -39,7 +39,7 @@ for i : 1 .. 10
         grid(i,j).goal := false
     end for
 end for
-    proc draw
+proc draw
     for i : 1 .. 10
         for j : 1 .. 10
             grid(i,j).leftB.y := i*50-50
@@ -105,6 +105,7 @@ proc aStar(startX,startY,goalX,goalY:int)
     
     %Add surrounding tiles to queue
     %Up Tile
+    put "A", contains(openX+1,openY)
     if openX+1 <= upper(grid,1) then
         if grid(openX+1,openY). wall = false and contains(openX+1,openY) = false then
             new q, upper(q) + 1
@@ -114,6 +115,7 @@ proc aStar(startX,startY,goalX,goalY:int)
         end if
     end if
     %Down Tile
+    put "B",contains(openX-1,openY)
     if openX-1 >= 1 then
         if grid(openX-1,openY). wall = false and contains(openX-1,openY) = false then
             new q, upper(q) + 1
@@ -123,6 +125,7 @@ proc aStar(startX,startY,goalX,goalY:int)
         end if
     end if
     %Left Tile
+    put "C",contains(openX,openY+1)
     if openY+1 <= upper(grid,2) then
         if grid(openX,openY+1). wall = false and contains(openX,openY+1) = false then
             new q, upper(q) + 1
@@ -132,6 +135,7 @@ proc aStar(startX,startY,goalX,goalY:int)
         end if
     end if
     %Right Tile
+    put "D",contains(openX,openY-1)
     if openY-1 >= lower(grid,1) then            
         if grid(openX,openY-1). wall = false and contains(openX,openY-1) = false then
             new q, upper(q) + 1
@@ -160,10 +164,18 @@ end aStar
 
     loop
         loops += 1
-    %delay(500)
+    delay(500)
     aStar(51,201,401,301)
-    %put q(lower(q)).fScore, " ", q(lower(q)).a, " ",q(lower(q)).b
-    /*for i : 1 .. 10
+    
+    for i : 1.. upper(q)
+        locate(i,70)
+        put q(i).fScore, " ", q(i).a, " ",q(i).b
+    end for
+    for i : 1.. upper(closedQ)
+        locate(i,80)
+        put closedQ(i).a," ",closedQ(i).b
+    end for
+    for i : 1 .. 10
         for j : 1 .. 10
             if grid(i,j).wall then
                 Draw.FillBox(grid(i,j).leftB.x,grid(i,j).leftB.y,grid(i,j).rightT.x,grid(i,j).rightT.y,black)
@@ -173,5 +185,5 @@ end aStar
                 Draw.FillBox(grid(i,j).leftB.x,grid(i,j).leftB.y,grid(i,j).rightB.x,grid(i,j).rightT.y,green)
             end if
         end for
-    end for*/
+    end for
 end loop
