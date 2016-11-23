@@ -1,12 +1,9 @@
 % Rebuild getangle function
-% Resize character - DONE
 % Make new character in photoshop (4 frames/image)
-% Wall collision detection - DONE
 % Shooting
-%Make bullet sprite for 8 directions
+% Make bullet sprite for 8 directions
 % Build function for 8 directions
 % Make transparent sprites for enemy
-% Enemy pathing
 % Enemy Shooting
 % Eliminate processes
 %%%%% Bonus %%%%%
@@ -42,9 +39,10 @@ record
     moveDirection : string
     dead : boolean
     pLast : vector
-    path : array 1 .. 100 of coordinate
+        path : array 1 .. 100 of coordinate
     firstMove : int
     enemyPath : boolean
+    enemyRoom : string
 end record
 
 type box:
@@ -67,7 +65,7 @@ record
 end record
 var pathing : boolean := false
 var counter :int := 0
-var pathfind : boolean := true
+var pathfind : boolean := false
 var loops : int := 0
 var grid : array 1..60,1..53 of box
 var q : flexible array 1 .. 0 of arrayElement
@@ -102,6 +100,7 @@ var enemySprite180 : array 1 .. numFramesEnemy of int
 var enemySprite270 : array 1 .. numFramesEnemy of int
 var test : int := Pic.FileNew("sprPWalkDoubleBarrel_0.bmp")
 var enemy1 : enemy
+var detect : string := ""
 var pics    : array 1 .. numFrames of int
 var pics180 : array 1 .. numFrames of int
 var pics45  : array 1 .. numFrames of int
@@ -204,8 +203,8 @@ function whatAngle (xvalue, yvalue : int) : int
 end whatAngle
 
 function whatAngleEnemy (xvalue, yvalue : int) : int
-    var playerX : int := maxx div 2
-    var playerY : int := maxy div 2
+    var playerX : int := maxx div 2+25-camera.x
+    var playerY : int := maxy div 2+25-camera.y
     playerX -= xvalue
     playerY -= yvalue
     if playerX not= 0 then
@@ -266,30 +265,22 @@ function collisionDetect (x,y: int) : boolean %checks if the currect coordinates
         result true
     elsif (postMove.x > 2375+camera.x) and (postMove.x < 2448+camera.x) and (postMove.y > 217+camera.y) and (postMove.y < 1425+camera.y) then % Right Wall of red room
         result true
-        /*
-    elsif (postMove.x > -1230) and (postMove.x < -1152) and (postMove.y > -1419) and (postMove.y < -627) then % Left, Top Wall of red room / Left wall of purple room
+    elsif (postMove.x > 1776+camera.x) and (postMove.x < 1849+camera.x) and (postMove.y > 1080+camera.y) and (postMove.y < 1857+camera.y) then % Left, Top Wall of red room / Left wall of purple room
         result true
-    elsif (postMove.x > -1506) and (postMove.x < -1152) and (postMove.y > -983) and (postMove.y < -887) then % Left wall between red and purple room
+    elsif (postMove.x > 1776+camera.x) and (postMove.x < 2129+camera.x) and (postMove.y > 1352+camera.y) and (postMove.y < 1425+camera.y) then % Left wall between red and purple room
         result true
-    elsif (postMove.x > -1816) and (postMove.x < -1574) and (postMove.y > -983) and (postMove.y < -887) then % Right wall between red and purple room
+    elsif (postMove.x > 2217+camera.x) and (postMove.x < 2448+camera.x) and (postMove.y > 1352+camera.y) and (postMove.y < 1425+camera.y) then % Right wall between red and purple room
         result true
-    elsif (postMove.x > -1924) and (postMove.x < -1152) and (postMove.y > -1415) and (postMove.y < -1319) then % Top, Left wall of purple room
+    elsif (postMove.x > 1776+camera.x) and (postMove.x < 2535+camera.x) and (postMove.y > 1784+camera.y) and (postMove.y < 1857+camera.y) then % Top, Left wall of purple room
         result true
-    elsif (postMove.x > -2366) and (postMove.x < -1986) and (postMove.y > -1415) and (postMove.y < -1319) then % Top, Right wall of purple room
+    elsif (postMove.x > 2632+camera.x) and (postMove.x < 2991+camera.x) and (postMove.y > 1784+camera.y) and (postMove.y < 1857+camera.y) then % Top, Right wall of purple room
         result true
-    elsif (postMove.x > -2370) and (postMove.x < -2278) and (postMove.y > -1801) and (postMove.y < -1213) then % Right, Top wall of purple room
+    elsif (postMove.x > 2917+camera.x) and (postMove.x < 2991+camera.x) and (postMove.y > 1673+camera.y) and (postMove.y < 2247+camera.y) then % Right, Top wall of purple room
         result true
-    elsif (postMove.x > -2370) and (postMove.x < -2278) and (postMove.y > -1147) and (postMove.y < -463) then % Right, Bottom wall of purple room
+    elsif (postMove.x > 2917+camera.x) and (postMove.x < 2991+camera.x) and (postMove.y > 920+camera.y) and (postMove.y < 1584+camera.y) then % Right, Bottom wall of purple room
         result true
-    elsif (postMove.x > -2370) and (postMove.x < -1735) and (postMove.y > -555) and (postMove.y < -459 ) then % Bottom wall of purple room
+    elsif (postMove.x > 2377+camera.x) and (postMove.x < 2991+camera.x) and (postMove.y > 920+camera.y) and (postMove.y < 990+camera.y ) then % Bottom wall of purple room
         result true
-    elsif (postMove.x > -812) and (postMove.x < -716) and (postMove.y > -2179) and (postMove.y < -1729 ) then % Left wall of elevator
-            result true
-    elsif (postMove.x > -1226) and (postMove.x < -1136) and (postMove.y > -2179) and (postMove.y < -1729 ) then % Right wall of elevator
-            result true
-    elsif (postMove.x > -1226) and (postMove.x < -716) and (postMove.y > -2179) and (postMove.y < -2089) then % Top wall of elevator
-            result true
-        */
     end if
     result false
 end collisionDetect
@@ -332,18 +323,22 @@ procedure movement
         %end if 
     cls
     Pic.Draw(mainLevel, spongebobPos.x + camera.x, spongebobPos.y + camera.y, picCopy)
-    Font.Draw("Camera X: " + intstr(camera.x), 0, 600, font1, black)
-    Font.Draw("Camera Y: " + intstr(camera.y), 0, 570, font1, black)
-    Font.Draw(playerRoom,0,540,font1,black)
+    Font.Draw("Player X: " + intstr(maxx div 2 -camera.x), 0, 600, font1, black)
+    Font.Draw("Player Y: " + intstr(maxy div 2 -camera.y), 0, 570, font1, black)
+    Font.Draw("Player Room: "+playerRoom,0,630,font1,black)
+    Font.Draw("Enemy Room: "+enemy1.enemyRoom,0,660,font1,black)
     Font.Draw("Enemy X: " + intstr(enemyPos(1).x),0,510,font1,black)
     Font.Draw("Enemy Y: " + intstr(enemyPos(1).y),0,480,font1,black)
-    Font.Draw("Bullet Y: " + intstr(grid(6,20).leftB.y),0,450,font1,black)
-    Font.Draw("Bullet X: " + intstr(grid(6,20).leftB.x),0,420,font1,black)
-    Font.Draw(intstr(upper(searched)),0,670,font1,black)
-    Draw.FillBox(grid(goal.x,goal.y).leftB.x+camera.x,grid(goal.x,goal.y).leftB.y+camera.y,grid(goal.x,goal.y).rightT.x+camera.x,grid(goal.x,goal.y).rightT.y+camera.y,yellow)
-    Font.Draw(intstr(q(lower(q)).fScore)+" "+intstr(openX)+" "+intstr(openY),0,640,font1,black)
-
-        View.Update
+    Font.Draw("Test #1: " + intstr(755+camera.x),0,450,font1,black)
+    Font.Draw("Test #2: " + intstr(1360+camera.x),0,420,font1,black)
+    Font.Draw(detect,0,390,font1,black)
+    Font.Draw(intstr(whatAngleEnemy(enemyPos(1).x,enemyPos(1).y)),0,360,font1,black)
+    if pathfind then
+           Draw.FillBox(grid(goal.x,goal.y).leftB.x+camera.x,grid(goal.x,goal.y).leftB.y+camera.y,grid(goal.x,goal.y).rightT.x+camera.x,grid(goal.x,goal.y).rightT.y+camera.y,yellow)
+    end if
+    %Font.Draw(intstr(q(lower(q)).fScore)+" "+intstr(openX)+" "+intstr(openY),0,640,font1,black)
+    
+    View.Update
     
 end movement
 
@@ -361,13 +356,7 @@ proc aStar(startX,startY,goalX,goalY:int)
     if initialize then
         for i : 1 .. 60
             for j : 1 .. 53
-                %put grid(i,j).leftB.x, "<=", goalX,"<", grid(i,j).rightB.x, " ", grid(i,j).leftB.y,"<=",goalY ,"<",grid(i,j).leftT.y
-                if grid(i,j).leftB.x > 1200 then
-                    %delay(100)
-                end if
                 if startX >= grid(i,j).leftB.x and startX < grid(i,j).rightB.x and startY >= grid(i,j).leftB.y and startY < grid(i,j).leftT.y then
-                    put "test"
-                    delay(500)
                     start.x := i
                     start.y := j
                     grid(i,j).start := true
@@ -376,9 +365,8 @@ proc aStar(startX,startY,goalX,goalY:int)
                     q(upper(q)).b := j
                 end if
                 if goalX >= grid(i,j).leftB.x and goalX < grid(i,j).rightB.x and goalY >= grid(i,j).leftB.y and goalY < grid(i,j).leftT.y then
-                    put "Goal!"
-                    delay(1000)
                     grid(i,j).goal := true
+                    grid(i,j).wall := false
                     goal.x := i
                     goal.y := j
                 end if
@@ -395,7 +383,7 @@ proc aStar(startX,startY,goalX,goalY:int)
         q(i) := q(i+1)
     end for
         new q, upper(q)-1
-    %Draw.FillBox(grid(openX,openY).leftB.x+camera.x,grid(openX,openY).leftB.y+camera.y,grid(openX,openY).rightT.x+camera.x,grid(openX,openY).rightT.y+camera.y,yellow)
+    Draw.FillBox(grid(openX,openY).leftB.x+camera.x,grid(openX,openY).leftB.y+camera.y,grid(openX,openY).rightT.x+camera.x,grid(openX,openY).rightT.y+camera.y,yellow)
     View.Update
     %Add surrounding tiles to queue
     %Up Tile
@@ -453,7 +441,7 @@ proc aStar(startX,startY,goalX,goalY:int)
             end if
         end for
     end for
-    if openX = goal.x and openY = goal.y then
+        if openX = goal.x and openY = goal.y then
         enemy1.path(100).x := openX
         enemy1.path(100).y := openY
         enemy1.path(99).x := grid(openX,openY).parent.x
@@ -467,7 +455,7 @@ proc aStar(startX,startY,goalX,goalY:int)
                 pathfind := false
                 exit
             end if
-
+            
         end loop
         enemy1.firstMove := counter
         enemy1.enemyPath := true
@@ -604,48 +592,42 @@ proc AISearch (var enemyNum : enemy)
     end if
 end AISearch
 
-procedure enemyAnimate
-    if enemyDead = false and key('v')=false then
-        Sprite.SetPosition(enemySPR,500-camera.x,500-camera.y,true)
-        Sprite.Show(enemySPR)
-        Sprite.SetHeight(enemySPR,2)
-        if enemyPos(1).y < 930 and enemyPos(1).x = 1330 then
-            Sprite.Animate(enemySPR,enemySprite90(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
-            enemyPos(1).y += 1
-        elsif enemyPos(1).y = 930 and enemyPos(1).x > 660 then
-            Sprite.Animate(enemySPR,enemySprite180(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
-            enemyPos(1).x -= 1
-        elsif enemyPos(1).x = 660 and enemyPos(1).y > 320 then
-            Sprite.Animate(enemySPR,enemySprite270(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
-            enemyPos(1).y -= 1
-        elsif enemyPos(1).x >= 660 and enemyPos(1).y <= 320 then
-            Sprite.Animate(enemySPR,enemySprite(enemyFrame),enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
-            enemyPos(1).x += 1
-        end if
-        View.Update
-        
-        
-        if Time.Elapsed - lastEnemyFrame > 100 then
-            lastEnemyFrame := Time.Elapsed
-            if enemyFrame = 8 then
-                enemyFrame := 0
+proc sightCheck
+    if (enemy1.enemyRoom = playerRoom) or (enemy1.enemyRoom = "carbon" and playerRoom = "CARBON2wood") or (enemy1.enemyRoom = "carbon" and playerRoom = "lvh2CARBON") or (enemy1.enemyRoom = "CARBON2wood" and playerRoom = "carbon") or (enemy1.enemyRoom = "lvh2CARBON" and playerRoom = "carbon") or (enemy1.enemyRoom = "lvh2CARBON" and playerRoom = "CARBON2wood") or (enemy1.enemyRoom = "CARBON2wood" and playerRoom = "lvh2CARBON") or (enemy1.enemyRoom = "CARBON2wood" and playerRoom = "carbon2WOOD") or (enemy1.enemyRoom = "carbon2WOOD" and playerRoom = "CARBON2wood") or (enemy1.enemyRoom = "lvh2CARBON" and playerRoom = "LVH2carbon") or (enemy1.enemyRoom = "LVH2carbon" and playerRoom = "lvh2CARBON")then
+        if enemy1.moveDirection = "up" then
+            if whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) > 0 and whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) < 180 then
+                detect := "up"
+            else
+                detect := "No"
             end if
-            enemyFrame += 1
+        elsif enemy1.moveDirection = "right" then
+            if whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) < 80 or whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) > 270 then
+               detect := "right"
+            else
+                detect := "No"
+            end if
+        elsif enemy1.moveDirection = "down" then
+            if whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) < 360 and whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) > 180 then
+                detect := "down"
+            else
+                detect := "No"
+            end if
+        elsif enemy1.moveDirection = "left" then
+            if whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) > 80 and whatAngleEnemy(enemyPos(1).x,enemyPos(1).y) < 270 then
+                detect := "left"
+            else
+                detect := "No"
+            end if
         end if
-    elsif enemyDead then
-        Sprite.Animate(enemySPR,eKill1IMG,enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,true)
-        View.Update
+    else
+        detect := "No"
     end if
-    if Math.Distance(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y,bulletPos(1).x,bulletPos(1).y) < 50 and shoot then
-        enemyDead := true
-    end if
-end enemyAnimate
-   
+end sightCheck
+
 proc enemyPathing
     if enemy1.enemyPath and newPath then
         newPath := false
     end if
-%(grid(enemy1.path(count).x,enemy1.path(count).y).leftB.x+25,grid(enemy1.path(count).x,enemy1.path(count).y).leftB.y+25
     if enemyPos(1).x - grid(enemy1.path(count).x,enemy1.path(count).y).leftB.x < 0 then
         enemyPos(1).x += 2
     elsif enemyPos(1).x - grid(enemy1.path(count).x,enemy1.path(count).y).leftB.x > 0 then
@@ -672,6 +654,7 @@ proc enemyPathing
         enemyFrame += 1
     end if
 end enemyPathing
+
 proc playerShoot
     %fork gunShot
     if shootDirection not= playerDirection and shootDirection not= 0 then
@@ -731,30 +714,79 @@ proc playerShoot
     end if
     
 end playerShoot
-% 563,623
+
+function roomAssign(x,y:int) :string
+        if    x >= 1433+camera.x and x <= 1776+camera.x and y >= 1856+camera.y and y <= 2175+camera.y then
+            result "intLVH&LHH"
+        elsif x >= 1433+camera.x and x <= 1776+camera.x and y >= 578+camera.y  and y <= 665 +camera.y then
+            result "LVH2carbon"
+        elsif x >= 631+camera.x  and x <= 1432+camera.x and y >= 578+camera.y  and y <= 665 +camera.y then
+            result "lvh2CARBON"
+        elsif x >= 985+camera.x  and x <= 1071+camera.x and y >= 288+camera.y  and y <= 1019+camera.y then
+            result "CARBON2wood"
+        elsif x >= 985+camera.x  and x <= 1071+camera.x and y >= 1020+camera.y and y <= 1785+camera.y then
+            result "carbon2WOOD"
+        elsif x >= 347+camera.x  and x <= 683+camera.x  and y >= 1301+camera.y and y <= 1379+camera.y then
+            result "wood2SVH"
+        elsif x >= 684+camera.x  and x <= 1355+camera.x and y >= 1301+camera.y and y <= 1379+camera.y then
+            result "WOOD2svh"
+        elsif x >= 755+camera.x  and x <= 1426+camera.x and y >= 1577+camera.y and y <= 1655+camera.y then
+            result "LVH2wood"
+        elsif x >= 1427+camera.x and x <= 1775+camera.x and y >= 1577+camera.y and y <= 1655+camera.y then
+            result "lvh2WOOD"
+        elsif x >= 1776+camera.x and x <= 2375+camera.x and y >= 995+camera.y  and y <= 1079+camera.y then
+            result "lvh2RED"
+        elsif x >= 1433+camera.x and x <= 1775+camera.x and y >= 995+camera.y  and y <= 1079+camera.y then
+            result "LVH2red"
+        elsif x >= 2129+camera.x and x <= 2213+camera.x and y >= 1427+camera.y and y <= 1781+camera.y then
+            result "red2PURPLE"
+        elsif x >= 2129+camera.x and x <= 2213+camera.x and y >= 293+camera.y  and y <= 1426+camera.y then
+            result "RED2purple"
+        elsif x >= 2537+camera.x and x <= 2627+camera.x and y >= 995+camera.y  and y <= 1858+camera.y then
+            result "PURPLE2lhh"
+        elsif x >= 2537+camera.x and x <= 2627+camera.x and y >= 1859+camera.y and y <= 2177+camera.y then
+            result "purple2LHH"
+        elsif x >= 345+camera.x  and x <= 686+camera.x  and y >= 1856+camera.y and y <= 2175+camera.y then
+            result "intSVH&LHH"
+        elsif x >= 2447+camera.x and x <= 2918+camera.x and y >= 1425+camera.y and y <= 1785+camera.y then
+            result "intPurple"
+        elsif x >= 1433+camera.x and x <= 1776+camera.x and y >= 288+camera.y  and y <= 2175+camera.y then
+            result "longVertHall"
+        elsif x >= 631+camera.x  and x <= 1360+camera.x and y >= 288+camera.y  and y <= 952+camera.y  then
+            result "carbon"
+        elsif x >= 755+camera.x  and x <= 1360+camera.x and y >= 1000+camera.y and y <= 1785+camera.y then
+            result "wood"
+        elsif x >= 345+camera.x  and x <= 686+camera.x  and y >= 1025+camera.y and y <= 2175+camera.y then
+            result "shortVertHall"
+        elsif x >= 631+camera.x  and x <= 2918+camera.x and y >= 1856+camera.y and y <= 2175+camera.y then
+            result "longHorzHall"
+        elsif x >= 1847+camera.x and x <= 2376+camera.x and y >= 288+camera.y  and y <= 1354+camera.y then
+            result "red"
+        elsif x >= 1847+camera.x and x <= 2918+camera.x and y >= 1425+camera.y and y <= 1785+camera.y then
+            result "purpleUpper"
+        elsif x >= 2447+camera.x and x <= 2918+camera.x and y >= 922+camera.y  and y <= 1785+camera.y then
+            result "purpleLower"
+        else
+            result "outside"
+        end if
+end roomAssign
 
 loop
-    %draw
     if pathfind then
-        aStar(enemyPos(1).x,enemyPos(1).y,2001,705)
+        aStar(enemyPos(1).x,enemyPos(1).y,maxx div 2-camera.x,maxy div 2-camera.y)
     end if        
     mousewhere(mousex,mousey,button)
-    if x > -1152 and x < 10 and y > -213 and y < -141 then
-        playerRoom := "carbon2Hall"
-    elsif x > -438 and x < -360 and y < 155 and y > -1355 then
-        playerRoom := "carbon2Wood"
-    elsif x > -800 and x < 10 and y < 155 and y > -513 then
-        playerRoom := "carbon"
-    end if
-    
+    playerRoom := roomAssign(maxx div 2,maxy div 2)
+    enemy1.enemyRoom := roomAssign(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y)
+    sightCheck
     playerAnimate
     movement
-    %enemyAnimate
     if key(' ') and (Time.Elapsed - shootDelay) > 1000 then
         shootDelay := Time.Elapsed
         shoot := true
     end if
     if shoot then
+        pathfind := true
         playerShoot
     end if
     if pathing = false then
@@ -764,13 +796,4 @@ loop
         enemyPathing
     end if
     View.Update
-    
-    x:= camera.x
-    y:=camera.y
-    %put mousex + 942,"and",mousey - 359
-    %put x,"and",y
-    %put dist, "dist", whatAngleEnemy(enemy(1,1),enemy(1,2))
-    View.Update
 end loop
-%x := -942
-%y := 359
