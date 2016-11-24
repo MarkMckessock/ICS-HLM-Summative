@@ -48,6 +48,8 @@ record
     bullet : int
     shootDelay : int
     speed : coordinate
+    shooting : boolean
+    status : string
 end record
 
 type box:
@@ -147,6 +149,10 @@ Pic.FileNewFrames ("walkGIFbluetransEnemy.gif", enemySprite, delayTime2)
 enemy1.dead := false
 enemy1.pLast.x := -1
 enemy1.pLast.y := -1
+enemy1.shootDelay := 0
+enemy1.shooting := false
+enemy1.bullet := Sprite.New(bulletIMG)
+enemy1.status := "neutral"
 for i : 1 .. upper(enemy1.path)
     enemy1.path(i).x := 0
     enemy1.path(i).y := 0
@@ -234,14 +240,16 @@ end whatAngleEnemy
 function collisionDetect (x,y: int) : boolean %checks if the currect coordinates collide with a wall
     postMove.x := x
     postMove.y := y
-    Input.KeyDown(key)
-    for i : 1 .. upper(inputEffects)
-        if key(inputEffects(i).input) then
-            postMove.x -= inputEffects(i).effect.x
-            postMove.y -= inputEffects(i).effect.y
-        end if
-    end for
-        
+    if x = maxx div 2 and y = maxy div 2 then
+        Input.KeyDown(key)
+        for i : 1 .. upper(inputEffects)
+            if key(inputEffects(i).input) then
+                postMove.x -= inputEffects(i).effect.x
+                postMove.y -= inputEffects(i).effect.y
+            end if
+        end for
+    end if
+    
     if (postMove.x > 560+camera.x) and (postMove.x < 1530+camera.x) and (postMove.y > 217+camera.y) and (postMove.y < 288+camera.y) then % Bottom, left Brick wall
         result true
     elsif (postMove.x > 686+camera.x) and (postMove.x < 750+camera.x) and (postMove.y > 1384+camera.y) and (postMove.y < 1857+camera.y) then % Left, Top wall of hardwood
@@ -363,7 +371,7 @@ end contains
 proc resetAStar
     new searched, 0
     new q, 0
-    initialize := false
+    initialize := true
 end resetAStar
 
 proc aStar(startX,startY,goalX,goalY:int)
@@ -646,6 +654,7 @@ proc sightCheck
 end sightCheck
 
 proc enemyPathing
+    Sprite.Hide(enemy1.bullet)
     if enemy1.enemyPath and newPath then
         newPath := false
     end if
@@ -678,60 +687,66 @@ end enemyPathing
 
 proc playerShoot
     %fork gunShot
-    if shootDirection not= playerDirection and shootDirection not= 0 then
-        playerDirection := shootDirection
+    if key(' ') and (Time.Elapsed - shootDelay) > 1000 then
+        shootDelay := Time.Elapsed
+        shoot := true
     end if
-    Sprite.Show(bulletSPR)
-    Sprite.Animate(bulletSPR,bulletIMG,bulletPos(1).x,bulletPos(1).y,true)
-    if playerDirection = 1 then
-        shootDirection := 1
-        bulletPos(1).x += 50
-        if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x-10,bulletPos(1).y) then
-            shoot:= false
-            bulletPos(1).x := maxx div 2
-            Sprite.Hide(bulletSPR)
-            shootDirection := 0
+    if shoot then
+        if shootDirection not= playerDirection and shootDirection not= 0 then
+            playerDirection := shootDirection
         end if
-    elsif playerDirection = 2 then
-        shootDirection := 2
-        bulletPos(1).y += 50
-        bulletPos(1).x += 50
-        if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x-20,bulletPos(1).y) then
-            shoot:= false
-            bulletPos(1).y := maxy div 2
-            bulletPos(1).x := maxx div 2
-            Sprite.Hide(bulletSPR)
-            shootDirection := 0
+        Sprite.Show(bulletSPR)
+        Sprite.Animate(bulletSPR,bulletIMG,bulletPos(1).x,bulletPos(1).y,true)
+        if playerDirection = 1 then
+            shootDirection := 1
+            bulletPos(1).x += 50
+            if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x-10,bulletPos(1).y) then
+                shoot:= false
+                bulletPos(1).x := maxx div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if
+        elsif playerDirection = 2 then
+            shootDirection := 2
+            bulletPos(1).y += 50
+            bulletPos(1).x += 50
+            if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x-20,bulletPos(1).y) then
+                shoot:= false
+                bulletPos(1).y := maxy div 2
+                bulletPos(1).x := maxx div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if
+        elsif playerDirection = 3 then
+            shootDirection := 3
+            bulletPos(1).y += 50
+            if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x,bulletPos(1).y-50) then
+                shoot:= false
+                bulletPos(1).y := maxy div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if
+        elsif playerDirection = 4 then
+            shootDirection := 4
+            bulletPos(1).x -= 50
+            bulletPos(1).y += 50
+            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y-50) then
+                shoot:= false
+                bulletPos(1).x := maxx div 2
+                bulletPos(1).y := maxy div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if 
+        elsif playerDirection = 5 then
+            shootDirection := 5
+            bulletPos(1).x -= 50
+            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y) then
+                shoot:= false
+                bulletPos(1).x := maxx div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if 
         end if
-    elsif playerDirection = 3 then
-        shootDirection := 3
-        bulletPos(1).y += 50
-        if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x,bulletPos(1).y-50) then
-            shoot:= false
-            bulletPos(1).y := maxy div 2
-            Sprite.Hide(bulletSPR)
-            shootDirection := 0
-        end if
-    elsif playerDirection = 4 then
-        shootDirection := 4
-        bulletPos(1).x -= 50
-        bulletPos(1).y += 50
-        if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y-50) then
-            shoot:= false
-            bulletPos(1).x := maxx div 2
-            bulletPos(1).y := maxy div 2
-            Sprite.Hide(bulletSPR)
-            shootDirection := 0
-        end if 
-    elsif playerDirection = 5 then
-        shootDirection := 5
-        bulletPos(1).x -= 50
-        if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y) then
-            shoot:= false
-            bulletPos(1).x := maxx div 2
-            Sprite.Hide(bulletSPR)
-            shootDirection := 0
-        end if 
     end if
 end playerShoot
 
@@ -791,58 +806,62 @@ function roomAssign(x,y:int) :string
     end if
 end roomAssign
 
-proc enemyShoot
+proc enemyShooting
+    %Starts timer is it is 0
     if enemy1.shootDelay = 0 then
         enemy1.shootDelay := Time.Elapsed
     end if
+    %If time > 0.5 seconds then activte shooting
+    if Time.Elapsed - enemy1.shootDelay > 500 then
+        enemy1.shooting := true        
+    end if
     if enemy1.shooting = false then
+        %Keep bullet origin and speed stuck to enemy, stop them changing once fired
         eBulletPos(1).x := enemyPos(1).x
         eBulletPos(1).y := enemyPos(1).y
-    end if
-    if Time.Elapsed - enemy1.shootDelay > 500 then
-        if shooting = false then
-            var eShootRoll : int := Rand.Int(1,3)
-            enemy1.speed.x := (enemyPos(1).x - (maxx div 2 - camera.x)) /  10
-            enemy1.speed.y := (enemyPos(1).y - (maxy div 2 - camera.y)) /  10
-        end if
-        enemy1.shooting := true
+        enemy1.speed.x := ((maxx div 2 - camera.x) - enemyPos(1).x) div  7
+        enemy1.speed.y := ((maxy div 2 - camera.y) - enemyPos(1).y) div  7
+    else
+        %If the bullet is fired incread x and y pos
         enemy1.shootDelay := 0
-        if eShootRoll = 1 then
-            %bullet to playey
-        else
-            %bullet near player
-        end if
+        eBulletPos(1).x += enemy1.speed.x
+        eBulletPos(1).y += enemy1.speed.y
     end if
-    Sprite.Animate(enemy1.bullet,bulletIMG,eBulletPos(1).x,eBulletPos(1).y,true)
-end enemyShoot
+    
+    %Animate Bullet
+    Sprite.Show(enemy1.bullet)
+    Sprite.Animate(enemy1.bullet,bulletIMG,eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,true)
+    
+    %If the bullet hits a wall or the player, hide it and reset the shooting proc
+    if collisionDetect(eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.x) or Math.Distance(eBulletPos(1).x-20,eBulletPos(1).y-20,maxx div 2-camera.x,maxy div 2-camera.x) < 50 then
+        enemy1.shooting := false
+        Sprite.Hide(enemy1.bullet)
+    end if
+end enemyShooting
 
 proc enemyReact
     if enemy1.eyesOn then
         enemy1.pLast.x := maxx div 2 - camera.x
         enemy1.pLast.y := maxy div 2 - camera.y
-        %if enemy1.timeOnTarget = 0 then
-        %enemy1.timeOnTarget := Time.Elapsed
-        %end if
     end if
-    %if Time.Elapsed - enemy1.timeOnTarget > 500 then
-    enemyShoot
-    %end if
+    if enemy1.eyesOn or enemy1.shooting then
+        enemyShooting
+    end if
     if enemy1.eyesOn = false then
-        %enemy1.timeOnTarget := 0
         if enemy1.pLast.x not= -1 then
             aStar(enemyPos(1).x,enemyPos(1).y,enemy1.pLast.x,enemy1.pLast.y)
         end if    
     end if
     
 end enemyReact
-
+%Enemy Modes
+%Neutral: has not seen player yet
+%Agressive: Sees player
+%Searching: Has seen player but can't anymore
 loop
     if Math.Distance(bulletPos(1).x-camera.x,bulletPos(1).y-camera.y,enemyPos(1).x,enemyPos(1).y) < 50 then
         enemy1.dead := true
-    end if
-    %if pathfind then
-    %aStar(enemyPos(1).x,enemyPos(1).y,maxx div 2-camera.x,maxy div 2-camera.y)
-    %end if        
+    end if      
     mousewhere(mousex,mousey,button)
     playerRoom := roomAssign(maxx div 2,maxy div 2)
     enemy1.enemyRoom := roomAssign(enemyPos(1).x+camera.x,enemyPos(1).y+camera.y)
@@ -850,19 +869,12 @@ loop
     enemyReact
     playerAnimate
     movement
-    if key(' ') and (Time.Elapsed - shootDelay) > 1000 then
-        shootDelay := Time.Elapsed
-        shoot := true
-    end if
-    if shoot then
-        %pathfind := true
-        playerShoot
-    end if
-    if pathing = false then
+    playerShoot
+    if enemy1.status = "neutral" then
         AISearch(enemy1)
     end if
-    if pathing and enemy1.dead = false then
+    if enemy1.status = "searching" then
         enemyPathing
     end if
-    View.Update
+    delay(30)
 end loop
