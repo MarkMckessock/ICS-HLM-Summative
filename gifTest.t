@@ -39,7 +39,7 @@ record
     moveDirection : string
     dead : boolean
     pLast : vector
-    path : array 1 .. 100 of coordinate
+        path : array 1 .. 100 of coordinate
     firstMove : int
     enemyPath : boolean
     enemyRoom : string
@@ -53,6 +53,19 @@ record
     speed : real
     selfLocation : coordinate
     SPR : int
+    tempPX : int
+    tempPY : int
+    noiseSearch : boolean
+    setPlayerPos : boolean
+    newPath : boolean
+    count : int
+    initialize : boolean
+    goalX : int
+    goalY : int
+    start : coordinate
+    goal : coordinate
+    openX : int
+    openY : int
 end record
 
 type box:
@@ -65,6 +78,7 @@ record
     rightT : coordinate
     wall   : boolean
     parent : coordinate
+    
 end record
 
 type arrayElement:
@@ -75,20 +89,21 @@ record
 end record
 
 type range:
-    record
-        lower : int
-        upper : int
-    end record
+record
+    lower : int
+    upper : int
+end record
 type wall: 
-    record
-        x: range
-        y : range
-    end record
+record
+    x: range
+    y : range
+end record
 var eBulletPos : array 1 .. 3 of coordinate
 var pathing : boolean := false
 var counter :int := 0
 var pathfind : boolean := false
 var loops : int := 0
+var shoot : boolean := false % true when player is shooting
 var grid : array 1..60,1..53 of box
 var q : flexible array 1 .. 0 of arrayElement
 var searched : flexible array 1 .. 0 of arrayElement
@@ -100,7 +115,6 @@ var eKill1IMG : int := Pic.FileNew("enemyKill1.bmp")
 var eKill1SPR : int := Sprite.New(eKill1IMG)
 var enemyDead : boolean := false
 var inputEffects :array 1 .. 4 of inputEffect := init(init('a', init(6, 0)), init('d', init(-6, 0)), init('w', init(0, -6)), init('s', init(0,6)))
-var shoot : boolean := false
 var key :array char of boolean
 var bulletIMG : int := Pic.FileNew("bullet.gif")
 var bulletSPR : int := Sprite.New(bulletIMG)
@@ -108,11 +122,9 @@ var lastInputCheck :int := 0
 var lastFrame : int := 0
 var lastEnemyFrame : int := 0
 var playerDirection : int
-var start,goal : coordinate
 var postMove : vector
-camera.x := -930
+    camera.x := -930
 camera.y := 300
-var newPath : boolean := false
 var numFrames := Pic.Frames ("walkGIFbluetrans.gif")
 var numFramesEnemy := Pic.Frames ("walkGIFbluetransEnemy.gif")
 var delayTime,delayTime2 : int
@@ -122,6 +134,10 @@ var enemySprite180 : array 1 .. numFramesEnemy of int
 var enemySprite270 : array 1 .. numFramesEnemy of int
 var test : int := Pic.FileNew("sprPWalkDoubleBarrel_0.bmp")
 var enemy : array 1 .. 3 of enemyType
+var enemy1Q : flexible array 1 .. 0 of arrayElement
+var enemy1Searched : flexible array 1 .. 0 of arrayElement
+var enemy2Q : flexible array 1 .. 0 of arrayElement
+var enemy2Searched : flexible array 1 .. 0 of arrayElement
 var divVal : int := 2
 var detect : string := ""
 var pics    : array 1 .. numFrames of int
@@ -133,8 +149,6 @@ var pics270 : array 1 .. numFrames of int
 var pics225 : array 1 .. numFrames of int
 var pics315 : array 1 .. numFrames of int
 var chars: array char of boolean
-var setPlayerPos : boolean := true
-var openX,openY : int
 var pathfound : boolean := false
 var x,y, speed, mousex, mousey, button: int
 var map1 : int := Pic.FileNew("mainLevel.jpg")
@@ -144,7 +158,7 @@ var playerFrame : int := 1
 var enemyFrame : int := 1
 var tempPX,tempPY : int := 0
 var bulletPos : array 1 .. 3 of vector
-enemy(1).x := 1330
+    enemy(1).x := 1330
 enemy(2).x := 2200
 enemy(1).y := 350
 enemy(2).y := 350
@@ -153,8 +167,7 @@ var sightRange : int := 300
 var dist : real
 var playerRoom : string := ""
 enemy(1).enemyPath := false
-var initialize : boolean := true
-var noiseSearch : boolean := false
+enemy(2).enemyPath := false
 var walls : array 1 .. 24 of wall
 var shootDirection : int := 0
 speed := 2
@@ -165,6 +178,7 @@ bulletPos(1).y := maxy div 2
 eBulletPos(1).x := maxx div 2
 eBulletPos(1).y := maxy div 2
 enemy(1).timeOnTarget := 0
+enemy(2).timeOnTarget := 0
 Pic.FileNewFrames ("walkGIFbluetrans.gif", pics, delayTime)
 Pic.FileNewFrames ("walkGIFbluetransEnemy.gif", enemySprite, delayTime2)
 % Sets all elements to 0 to see when the array elements start
@@ -175,6 +189,11 @@ enemy(1).shootDelay := 0
 enemy(1).shooting := false
 enemy(1).bullet := Sprite.New(bulletIMG)
 enemy(1).status := "neutral"
+enemy(1).noiseSearch := false
+enemy(1).setPlayerPos := true
+enemy(1).initialize := true
+enemy(1).newPath := false
+enemy(1).eyesOn := false
 
 enemy(2).dead := false
 enemy(2).pLast.x := -1
@@ -183,11 +202,16 @@ enemy(2).shootDelay := 0
 enemy(2).shooting := false
 enemy(2).bullet := Sprite.New(bulletIMG)
 enemy(2).status := "neutral"
+enemy(2).noiseSearch := false
+enemy(2).setPlayerPos := true
+enemy(2).initialize := true
+enemy(2).newPath := false
+enemy(2).eyesOn := false
 for i : 1 .. upper(enemy(1).path)
     enemy(1).path(i).x := 0
     enemy(1).path(i).y := 0
 end for
-enemy(1).SPR := Sprite.New(enemySprite(1))
+    enemy(1).SPR := Sprite.New(enemySprite(1))
 enemy(2).SPR := Sprite.New(enemySprite(1))
 var player: int := Sprite.New(pics(1))
 
@@ -281,7 +305,7 @@ function collisionDetect (x,y: int,character : boolean) : boolean %checks if the
     walls(2).y.upper := 1857 + camera.y
     % Top Wall of hardwood 
     walls(3).x.lower := 686  + camera.x
-    walls(3).x.upper := 750  + camera.x
+    walls(3).x.upper := 1433 + camera.x
     walls(3).y.lower := 1785 + camera.y
     walls(3).y.upper := 1857 + camera.y
     % Top,Right wall of carbon
@@ -417,7 +441,7 @@ function collisionDetect (x,y: int,character : boolean) : boolean %checks if the
             result true
         end if
     end for
-    result false
+        result false
 end collisionDetect
 %12,5
 proc draw
@@ -445,35 +469,39 @@ draw
 procedure movement
     Input.KeyDown(key)
     if Time.Elapsed - lastInputCheck > 15 then
-    lastInputCheck := Time.Elapsed
-    for i : 1 .. upper(inputEffects)
-        if key(inputEffects(i).input) then
-            if collisionDetect(maxx div 2,maxy div 2,true)=false then
-                camera.x += inputEffects(i).effect.x
-                camera.y += inputEffects(i).effect.y
+        lastInputCheck := Time.Elapsed
+        for i : 1 .. upper(inputEffects)
+            if key(inputEffects(i).input) then
+                if collisionDetect(maxx div 2,maxy div 2,true)=false then
+                    camera.x += inputEffects(i).effect.x
+                    camera.y += inputEffects(i).effect.y
+                end if
             end if
-        end if
-    end for 
+        end for 
     end if 
     cls
     Pic.Draw(mainLevel, spongebobPos.x + camera.x, spongebobPos.y + camera.y, picCopy)
-    Font.Draw("Player X: " + intstr(maxx div 2 -camera.x), 0, 600, font1, black)
-    Font.Draw("Player Y: " + intstr(maxy div 2 -camera.y), 0, 570, font1, black)
-    Font.Draw("Enemy X: " + intstr(enemy(1).x),0,510,font1,black)
-    Font.Draw("Enemy Y: " + intstr(enemy(1).y),0,480,font1,black)
-    Font.Draw("Test #1: " + intstr(enemy(2).x),0,450,font1,white)
-    Font.Draw("Test #2: " + intstr(enemy(2).y),0,420,font1,white)  
-    if postMove.x > walls(wallHit).x.lower and postMove.x < walls(wallHit).x.upper then
-        Font.Draw("Wall X",0,390,font1,black)
+    Font.Draw("Player X: " + intstr(maxx div 2 - camera.x),0,690,font1,white)
+    Font.Draw("Player Y: " + intstr(maxy div 2 - camera.y),0,720,font1,white)
+    Font.Draw("Enemy2 x " + intstr(enemy(2).x),0,660,font1,white)
+    Font.Draw("Enemy2 y " + intstr(enemy(2).y),0,630,font1,white)
+    if enemy(1).noiseSearch then
+        Font.Draw("Enemy 1 NoiseSearch ", 0, 600, font1, black)
     end if
-    if postMove.y >  walls(wallHit).y.lower and postMove.y < walls(wallHit).y.upper then
-        Font.Draw("Wall Y",0,360,font1,black)
+    if enemy(1).noiseSearch then
+        Font.Draw("Enemy 2 NoiseSearch", 0, 570, font1, black)
     end if
-    if pathfind then
-        %Draw.FillBox(grid(goal.x,goal.y).leftB.x+camera.x,grid(goal.x,goal.y).leftB.y+camera.y,grid(goal.x,goal.y).rightT.x+camera.x,grid(goal.x,goal.y).rightT.y+camera.y,yellow)
+    if shoot then
+        Font.Draw("Player Shoot",0,510,font1,black)
     end if
-    %Font.Draw(intstr(q(lower(q)).fScore)+" "+intstr(openX)+" "+intstr(openY),0,640,font1,black)
-    
+    Font.Draw("Enemy 1 Status: " + enemy(1).status,0,480,font1,black)
+    Font.Draw("Enemy 2 Status: " + enemy(2).status,0,450,font1,white)
+    if enemy(1).eyesOn then
+        Font.Draw("Enemy 1 Eyes on",0,420,font1,white)  
+    end if
+    if enemy(2).eyesOn then
+        Font.Draw("Enemy 2 Eyes on",0,390,font1,white)  
+    end if
     View.Update
     
 end movement
@@ -487,22 +515,50 @@ function contains (x,y : int, list : array 1..* of arrayElement) : boolean
         result false
 end contains
 
-proc resetAStar
-    new searched, 0
-    new q, 0
-    initialize := true
-    setPlayerPos := true
+proc resetAStar(enemyNum : int)
+    if enemyNum = 1 then
+        new enemy1Q, 0 
+        new enemy1Searched, 0
+        enemy(1).openX := 0
+        enemy(1).openY := 0
+    elsif enemyNum = 2 then
+        new enemy2Q, 0 
+        new enemy2Searched, 0
+        enemy(2).openX := 0
+        enemy(2).openY := 0
+    end if
+    enemy(enemyNum).initialize := true
+    enemy(enemyNum).setPlayerPos := true
 end resetAStar
 
-proc aStar(startX,startY,goalX,goalY:int)
-    loops += 1
-    if initialize then
+proc aStar(startX,startY,goalX,goalY,enemyNum:int)
+    new q, 0
+    new searched, 0
+    if enemyNum = 1 then
+        new q, upper(enemy1Q)
+        new searched, upper(enemy1Searched)
+        for i : 1 .. upper(q)
+            q(i) := enemy1Q(i)
+        end for
+        for i : 1 .. upper(searched)
+            searched(i) := enemy1Searched(i)
+        end for
+    elsif enemyNum = 2 then
+        new q, upper(enemy2Q)
+        new searched, upper(enemy2Searched)
+        for i : 1 .. upper(q)
+            q(i) := enemy2Q(i)
+        end for
+        for i : 1 .. upper(searched)
+            searched(i) := enemy2Searched(i)
+        end for
+    end if
+    if enemy(enemyNum).initialize then
         for i : 1 .. 60
             for j : 1 .. 53
                 if startX >= grid(i,j).leftB.x and startX < grid(i,j).rightB.x and startY >= grid(i,j).leftB.y and startY < grid(i,j).leftT.y then
-                    
-                    start.x := i
-                    start.y := j
+                    enemy(enemyNum).start.x := i
+                    enemy(enemyNum).start.y := j
                     grid(i,j).start := true
                     new q, upper(q)+1
                     q(upper(q)).a := i
@@ -511,112 +567,136 @@ proc aStar(startX,startY,goalX,goalY:int)
                 if goalX >= grid(i,j).leftB.x and goalX < grid(i,j).rightB.x and goalY >= grid(i,j).leftB.y and goalY < grid(i,j).leftT.y then
                     grid(i,j).goal := true
                     grid(i,j).wall := false
-                    goal.x := i
-                    goal.y := j
+                    enemy(enemyNum).goal.x := i
+                    enemy(enemyNum).goal.y := j
                 end if
             end for
         end for
-            initialize := false
+            enemy(enemyNum).initialize := false
     end if
-    if goal.x not= start.x and goal.y not= start.y then
-    %Open first item in queue and remove from list
-    openX := q(lower(q)).a
-    openY := q(lower(q)).b
-    new searched, upper(searched) + 1
-    searched(upper(searched)) := q(lower(q))
-    for i : 1 .. upper(q)-1
-        q(i) := q(i+1)
-    end for
-        new q, upper(q)-1
-    %Draw.FillBox(grid(openX,openY).leftB.x+camera.x,grid(openX,openY).leftB.y+camera.y,grid(openX,openY).rightT.x+camera.x,grid(openX,openY).rightT.y+camera.y,yellow)
-    View.Update
-    %Add surrounding tiles to queue
-    %Up Tile
-    if openX+1 <= upper(grid,1) then
-        if grid(openX+1,openY). wall = false and contains(openX+1,openY,searched) = false and contains(openX+1,openY,q) = false then
-            new q, upper(q) + 1
-            q(upper(q)).a := openX + 1
-            q(upper(q)).b := openY
-            grid(openX+1,openY).parent.x := openX
-            grid(openX+1,openY).parent.y := openY
-            q(upper(q)).fScore := round( 8*(abs((openX+1)-goal.x) + abs(openY-goal.y)) + (abs((openX+1)-start.x) + abs(openY-start.y)))
-        end if
-    end if
-    %Down Tile
-    if openX-1 >= 1 then
-        if grid(openX-1,openY). wall = false and contains(openX-1,openY,searched) = false and contains(openX-1,openY,q) = false then
-            new q, upper(q) + 1
-            q(upper(q)).a := openX - 1
-            q(upper(q)).b := openY
-            grid(openX-1,openY).parent.x := openX
-            grid(openX-1,openY).parent.y := openY
-            q(upper(q)).fScore := round( 8*(abs((openX-1)-goal.x) + abs(openY-goal.y)) + (abs((openX-1)-start.x) + abs(openY-start.y)))
-        end if
-    end if
-    %Left Tile
-    if openY+1 <= upper(grid,2) then
-        if grid(openX,openY+1). wall = false and contains(openX,openY+1,searched) = false and contains(openX,openY+1,q) = false then
-            new q, upper(q) + 1
-            q(upper(q)).a := openX
-            q(upper(q)).b := openY + 1
-            grid(openX,openY+1).parent.x := openX
-            grid(openX,openY+1).parent.y := openY
-            q(upper(q)).fScore := round( 8*(abs(openX-goal.x) + abs((openY+1)-goal.y)) + (abs(openX-start.x) + abs((openY+1)-start.y)))
-        end if
-    end if
-    %Right Tile
-    if openY-1 >= lower(grid,1) then            
-        if grid(openX,openY-1). wall = false and contains(openX,openY-1,searched) = false and contains(openX,openY-1,q) = false then
-            new q, upper(q) + 1
-            q(upper(q)).a := openX
-            q(upper(q)).b := openY - 1
-            grid(openX,openY-1).parent.x := openX
-            grid(openX,openY-1).parent.y := openY
-            q(upper(q)).fScore := round( 8*(abs(openX-goal.x) + abs((openY-1)-goal.y)) + (abs(openX-start.x) + abs((openY-1)-start.y)))
-        end if
-    end if
-    %Sort
-    var temp : arrayElement
-    for a : 1 .. upper(q)
-        for i : 1 .. (upper(q)-1)
-            if q(i).fScore > q(i+1).fScore then
-                temp := q(i)
-                q(i) := q(i+1)
-                q(i+1) := temp
-            end if
+    if enemy(enemyNum).goal.x not= enemy(enemyNum).start.x and enemy(enemyNum).goal.y not= enemy(enemyNum).start.y then
+        %Open first item in queue and remove from list
+        enemy(enemyNum).openX := q(lower(q)).a
+        enemy(enemyNum).openY := q(lower(q)).b
+        new searched, upper(searched) + 1
+        searched(upper(searched)) := q(lower(q))
+        for i : 1 .. upper(q)-1
+            q(i) := q(i+1)
         end for
-    end for
-        if openX = goal.x and openY = goal.y then
-        enemy(1).path(100).x := openX
-        enemy(1).path(100).y := openY
-        enemy(1).path(99).x := grid(openX,openY).parent.x
-        enemy(1).path(99).y := grid(openX,openY).parent.y
-        counter := 98
-        loop
-            enemy(1).path(counter).x := grid(enemy(1).path(counter+1).x, enemy(1).path(counter+1).y).parent.x
-            enemy(1).path(counter).y := grid(enemy(1).path(counter+1).x, enemy(1).path(counter+1).y).parent.y
-            counter -= 1
-            if enemy(1).path(counter+1).x = start.x and enemy(1).path(counter+1).y = start.y then
-                pathfind := false
-                exit
+            new q, upper(q)-1
+        %Draw.FillBox(grid(enemy(enemyNum).openX,enemy(enemyNum).openY).leftB.x+camera.x,grid(enemy(enemyNum).openX,enemy(enemyNum).openY).leftB.y+camera.y,grid(enemy(enemyNum).openX,enemy(enemyNum).openY).rightT.x+camera.x,grid(enemy(enemyNum).openX,enemy(enemyNum).openY).rightT.y+camera.y,yellow)
+        View.Update
+        %Add surrounding tiles to queue
+        %Up Tile
+        if enemy(enemyNum).openX+1 <= upper(grid,1) then
+            if grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY). wall = false and contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,searched) = false and contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,q) = false then
+                new q, upper(q) + 1
+                q(upper(q)).a := enemy(enemyNum).openX + 1
+                q(upper(q)).b := enemy(enemyNum).openY
+                grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY).parent.x := enemy(enemyNum).openX
+                grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY).parent.y := enemy(enemyNum).openY
+                q(upper(q)).fScore := round( 8*(abs((enemy(enemyNum).openX+1)-enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).goal.y)) + (abs((enemy(enemyNum).openX+1)-enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).start.y)))
             end if
-            
-        end loop
+        end if
+        %Down Tile
+        if enemy(enemyNum).openX-1 >= 1 then
+            if grid(enemy(enemyNum).openX-1,enemy(enemyNum).openY). wall = false and contains(enemy(enemyNum).openX-1,enemy(enemyNum).openY,searched) = false and contains(enemy(enemyNum).openX-1,enemy(enemyNum).openY,q) = false then
+                new q, upper(q) + 1
+                q(upper(q)).a := enemy(enemyNum).openX - 1
+                q(upper(q)).b := enemy(enemyNum).openY
+                grid(enemy(enemyNum).openX-1,enemy(enemyNum).openY).parent.x := enemy(enemyNum).openX
+                grid(enemy(enemyNum).openX-1,enemy(enemyNum).openY).parent.y := enemy(enemyNum).openY
+                q(upper(q)).fScore := round( 8*(abs((enemy(enemyNum).openX-1)-enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).goal.y)) + (abs((enemy(enemyNum).openX-1)-enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).start.y)))
+            end if
+        end if
+        %Left Tile
+        if enemy(enemyNum).openY+1 <= upper(grid,2) then
+            if grid(enemy(enemyNum).openX,enemy(enemyNum).openY+1). wall = false and contains(enemy(enemyNum).openX,enemy(enemyNum).openY+1,searched) = false and contains(enemy(enemyNum).openX,enemy(enemyNum).openY+1,q) = false then
+                new q, upper(q) + 1
+                q(upper(q)).a := enemy(enemyNum).openX
+                q(upper(q)).b := enemy(enemyNum).openY + 1
+                grid(enemy(enemyNum).openX,enemy(enemyNum).openY+1).parent.x := enemy(enemyNum).openX
+                    grid(enemy(enemyNum).openX,enemy(enemyNum).openY+1).parent.y := enemy(enemyNum).openY
+                q(upper(q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).start.y)))
+            end if
+        end if
+        %Right Tile
+        if enemy(enemyNum).openY-1 >= lower(grid,1) then            
+            if grid(enemy(enemyNum).openX,enemy(enemyNum).openY-1). wall = false and contains(enemy(enemyNum).openX,enemy(enemyNum).openY-1,searched) = false and contains(enemy(enemyNum).openX,enemy(enemyNum).openY-1,q) = false then
+                new q, upper(q) + 1
+                q(upper(q)).a := enemy(enemyNum).openX
+                q(upper(q)).b := enemy(enemyNum).openY - 1
+                grid(enemy(enemyNum).openX,enemy(enemyNum).openY-1).parent.x := enemy(enemyNum).openX
+                grid(enemy(enemyNum).openX,enemy(enemyNum).openY-1).parent.y := enemy(enemyNum).openY
+                q(upper(q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).start.y)))
+            end if
+        end if
+        if enemy(enemyNum).goal.x not= enemy(enemyNum).openX then
+        %Sort
+        var temp : arrayElement
+        for a : 1 .. upper(q)
+            for i : 1 .. (upper(q)-1)
+                if q(i).fScore > q(i+1).fScore then
+                    temp := q(i)
+                    q(i) := q(i+1)
+                    q(i+1) := temp
+                end if
+            end for
+        end for
+        end if
+            if enemy(enemyNum).openX = enemy(enemyNum).goal.x and enemy(enemyNum).openY = enemy(enemyNum).goal.y then
+            enemy(enemyNum).path(100).x := enemy(enemyNum).openX
+            enemy(enemyNum).path(100).y := enemy(enemyNum).openY
+            enemy(enemyNum).path(99).x := grid(enemy(enemyNum).openX,enemy(enemyNum).openY).parent.x
+            enemy(enemyNum).path(99).y := grid(enemy(enemyNum).openX,enemy(enemyNum).openY).parent.y
+            enemy(enemyNum).count := 98
+            loop
+                enemy(enemyNum).path(enemy(enemyNum).count).x := grid(enemy(enemyNum).path(enemy(enemyNum).count+1).x, enemy(enemyNum).path(enemy(enemyNum).count+1).y).parent.x
+                enemy(enemyNum).path(enemy(enemyNum).count).y := grid(enemy(enemyNum).path(enemy(enemyNum).count+1).x, enemy(enemyNum).path(enemy(enemyNum).count+1).y).parent.y
+                enemy(enemyNum).count -= 1
+                if enemy(enemyNum).path(enemy(enemyNum).count+1).x = enemy(enemyNum).start.x and enemy(enemyNum).path(enemy(enemyNum).count+1).y = enemy(enemyNum).start.y then
+                    exit
+                end if
+            end loop
+        end if
+        
+        if enemyNum = 1 then
+        new enemy1Q, upper(q)
+        new enemy1Searched, upper(searched)
+        for i : 1 .. upper(q)
+            enemy1Q(i) := q(i)
+        end for
+            for i : 1 .. upper(searched)
+            enemy1Searched(i) := searched(i)
+        end for
+        elsif enemyNum = 2 then
+        new enemy2Q, upper(q)
+        new enemy2Searched, upper(searched)
+        for i : 1 .. upper(q)
+            enemy2Q(i) := q(i)
+        end for
+            for i : 1 .. upper(searched)
+            enemy2Searched(i) := searched(i)
+        end for
         end if
     
-    if openX = goal.x and openY = goal.y then
-        enemy(1).firstMove := counter
-        enemy(1).enemyPath := true
-        newPath := true
-        pathing := true
-        resetAStar
-        count := enemy(1).firstMove + 1
-        enemy(1).pLast.x := -1
-        enemy(1).pLast.y := -1
-        enemy(1).status := "searching"
-        noiseSearch := false
+        if enemy(enemyNum).openX = enemy(enemyNum).goal.x and enemy(enemyNum).openY = enemy(enemyNum).goal.y then
+            %enemy(enemyNum).firstMove := counter
+            enemy(enemyNum).enemyPath := true
+            %newPath := true
+            %pathing := true
+            resetAStar(enemyNum)
+            enemy(enemyNum).count := enemy(enemyNum).count + 1
+            enemy(enemyNum).pLast.x := -1
+            enemy(enemyNum).pLast.y := -1
+            enemy(enemyNum).status := "searching"
+            enemy(enemyNum).noiseSearch := false
+        end if
     end if
-    end if
+    %% Get data back from 'q' and 'searched' arrays and return to specific enemy arrays.
+    
+    new q, 0
+    new searched, 0
 end aStar
 
 procedure playerAnimate
@@ -663,6 +743,7 @@ enemy(1).moveDirection := "null"
 enemy(2).moveDirection := "null"
 
 proc AISearch (enemyNum : int)
+    Sprite.Hide(enemy(enemyNum).bullet)
     if enemy(enemyNum).dead = false then
         Sprite.Show(enemy(enemyNum).SPR)
         Sprite.SetHeight(enemy(enemyNum).SPR,2)
@@ -727,66 +808,66 @@ proc AISearch (enemyNum : int)
     end if
 end AISearch
 
-proc sightCheck
-    if (enemy(1).enemyRoom = playerRoom) or (enemy(1).enemyRoom = "carbon" and playerRoom = "CARBON2wood") or (enemy(1).enemyRoom = "carbon" and playerRoom = "lvh2CARBON") or (enemy(1).enemyRoom = "CARBON2wood" and playerRoom = "carbon") or (enemy(1).enemyRoom = "lvh2CARBON" and playerRoom = "carbon") or (enemy(1).enemyRoom = "lvh2CARBON" and playerRoom = "CARBON2wood") or (enemy(1).enemyRoom = "CARBON2wood" and playerRoom = "lvh2CARBON") or (enemy(1).enemyRoom = "CARBON2wood" and playerRoom = "carbon2WOOD") or (enemy(1).enemyRoom = "carbon2WOOD" and playerRoom = "CARBON2wood") or (enemy(1).enemyRoom = "lvh2CARBON" and playerRoom = "LVH2carbon") or (enemy(1).enemyRoom = "LVH2carbon" and playerRoom = "lvh2CARBON")then
-        if enemy(1).moveDirection = "up" then
-            if whatAngleEnemy(enemy(1).x,enemy(1).y) > 0 and whatAngleEnemy(enemy(1).x,enemy(1).y) < 180 then
-                enemy(1).eyesOn := true
+proc sightCheck(enemyNum : int)
+    if (enemy(enemyNum).enemyRoom = playerRoom) or (enemy(enemyNum).enemyRoom = "carbon" and playerRoom = "CARBON2wood") or (enemy(enemyNum).enemyRoom = "carbon" and playerRoom = "lvh2CARBON") or (enemy(enemyNum).enemyRoom = "CARBON2wood" and playerRoom = "carbon") or (enemy(enemyNum).enemyRoom = "lvh2CARBON" and playerRoom = "carbon") or (enemy(enemyNum).enemyRoom = "lvh2CARBON" and playerRoom = "CARBON2wood") or (enemy(enemyNum).enemyRoom = "CARBON2wood" and playerRoom = "lvh2CARBON") or (enemy(enemyNum).enemyRoom = "CARBON2wood" and playerRoom = "carbon2WOOD") or (enemy(enemyNum).enemyRoom = "carbon2WOOD" and playerRoom = "CARBON2wood") or (enemy(enemyNum).enemyRoom = "lvh2CARBON" and playerRoom = "LVH2carbon") or (enemy(enemyNum).enemyRoom = "LVH2carbon" and playerRoom = "lvh2CARBON")then
+        if enemy(enemyNum).moveDirection = "up" then
+            if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) > 0 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 180 then
+                enemy(enemyNum).eyesOn := true
             else
-                enemy(1).eyesOn := false
+                enemy(enemyNum).eyesOn := false
             end if
-        elsif enemy(1).moveDirection = "right" then
-            if whatAngleEnemy(enemy(1).x,enemy(1).y) < 80 or whatAngleEnemy(enemy(1).x,enemy(1).y) > 270 then
-                enemy(1).eyesOn := true
+        elsif enemy(enemyNum).moveDirection = "right" then
+            if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 80 or whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) > 270 then
+                enemy(enemyNum).eyesOn := true
             else
-                enemy(1).eyesOn := false
+                enemy(enemyNum).eyesOn := false
             end if
-        elsif enemy(1).moveDirection = "down" then
-            if whatAngleEnemy(enemy(1).x,enemy(1).y) < 360 and whatAngleEnemy(enemy(1).x,enemy(1).y) > 180 then
-                enemy(1).eyesOn := true
+        elsif enemy(enemyNum).moveDirection = "down" then
+            if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 360 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) > 180 then
+                enemy(enemyNum).eyesOn := true
             else
-                enemy(1).eyesOn := false
+                enemy(enemyNum).eyesOn := false
             end if
-        elsif enemy(1).moveDirection = "left" then
-            if whatAngleEnemy(enemy(1).x,enemy(1).y) > 80 and whatAngleEnemy(enemy(1).x,enemy(1).y) < 270 then
-                enemy(1).eyesOn := true
+        elsif enemy(enemyNum).moveDirection = "left" then
+            if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) > 80 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 270 then
+                enemy(enemyNum).eyesOn := true
             else
-                enemy(1).eyesOn := false
+                enemy(enemyNum).eyesOn := false
             end if
         end if
     else
-        enemy(1).eyesOn := false
+        enemy(enemyNum).eyesOn := false
     end if
 end sightCheck
 
-proc enemyPathing
+proc enemyPathing(enemyNum : int)
     %Sprite.Hide(enemy1.bullet)
-    if enemy(1).enemyPath and newPath then
-        newPath := false
+    if enemy(enemyNum).enemyPath and enemy(enemyNum).newPath then
+        enemy(enemyNum).newPath := false
     end if
-    if enemy(1).x - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.x < 0 then
-        enemy(1).x += 2
-        enemy(1).moveDirection := "right"
-        Sprite.Animate(enemy(1).SPR,enemySprite(enemyFrame),enemy(1).x+camera.x,enemy(1).y+camera.y,true)
-    elsif enemy(1).x - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.x > 0 then
-        enemy(1).x -= 2
-        enemy(1).moveDirection := "left"
-        Sprite.Animate(enemy(1).SPR,enemySprite180(enemyFrame),enemy(1).x+camera.x,enemy(1).y+camera.y,true)
-    elsif enemy(1).y - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.y < 0 then
-        enemy(1).y += 2
-        enemy(1).moveDirection := "up"
-        Sprite.Animate(enemy(1).SPR,enemySprite90(enemyFrame),enemy(1).x+camera.x,enemy(1).y+camera.y,true)
-    elsif enemy(1).y - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.y > 0 then
-        enemy(1).y -= 2
-        enemy(1).moveDirection := "down"
-        Sprite.Animate(enemy(1).SPR,enemySprite270(enemyFrame),enemy(1).x+camera.x,enemy(1).y+camera.y,true)
+    if enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x < 0 then
+        enemy(enemyNum).x += 2
+        enemy(enemyNum).moveDirection := "right"
+        Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(1).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    elsif enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x > 0 then
+        enemy(enemyNum).x -= 2
+        enemy(enemyNum).moveDirection := "left"
+        Sprite.Animate(enemy(enemyNum).SPR,enemySprite180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    elsif enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y < 0 then
+        enemy(enemyNum).y += 2
+        enemy(enemyNum).moveDirection := "up"
+        Sprite.Animate(enemy(enemyNum).SPR,enemySprite90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    elsif enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y > 0 then
+        enemy(enemyNum).y -= 2
+        enemy(enemyNum).moveDirection := "down"
+        Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     end if
     
-    if enemy(1).x - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.x > -1 and enemy(1).x - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.x < 1 and enemy(1).y - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.y > -1 and enemy(1).y - grid(enemy(1).path(count).x,enemy(1).path(count).y).leftB.y < 1 then
-        count += 1
+    if enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x > -1 and enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x < 1 and enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y > -1 and enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y < 1 then
+        enemy(enemyNum).count += 1
     end if
-    if count = 101 then 
-        enemy(1).status := "neutral"
+    if enemy(enemyNum).count = 101 then 
+        enemy(enemyNum).status := "neutral"
     end if
     if Time.Elapsed - lastEnemyFrame > 100 then
         lastEnemyFrame := Time.Elapsed
@@ -918,99 +999,108 @@ function roomAssign(x,y:int) :string
     end if
 end roomAssign
 
-proc enemyShooting
-    enemy(1).status := "shooting"
-    %Starts timer is it is 0
-    if enemy(1).shootDelay = 0 then
-        enemy(1).shootDelay := Time.Elapsed
+proc enemyShooting(enemyNum : int)
+    enemy(enemyNum).status := "shooting"
+    %Starts timer if it is 0
+    if enemy(enemyNum).shootDelay = 0 then
+        enemy(enemyNum).shootDelay := Time.Elapsed
     end if
     %If time > 0.5 seconds then activte shooting
-    if Time.Elapsed - enemy(1).shootDelay > 500 then
-        enemy(1).shooting := true        
+    if Time.Elapsed - enemy(enemyNum).shootDelay > 500 then
+        enemy(enemyNum).shooting := true        
     end if
-    if enemy(1).shooting = false then
+    if enemy(enemyNum).shooting = false then
         %Keep bullet origin and speed stuck to enemy, stop them changing once fired
-        eBulletPos(1).x := enemy(1).x
-        eBulletPos(1).y := enemy(1).y
-        enemy(1).targetLocation.x := (maxx div 2 - camera.x)
-        enemy(1).targetLocation.y := (maxy div 2 - camera.y)
-        enemy(1).selfLocation.x := enemy(1).x
-        enemy(1).selfLocation.y := enemy(1).y
-        enemy(1).speed := 0.1
+        eBulletPos(enemyNum).x := enemy(enemyNum).x
+        eBulletPos(enemyNum).y := enemy(enemyNum).y
+        enemy(enemyNum).targetLocation.x := (maxx div 2 - camera.x)
+        enemy(enemyNum).targetLocation.y := (maxy div 2 - camera.y)
+        enemy(enemyNum).selfLocation.x := enemy(enemyNum).x
+        enemy(enemyNum).selfLocation.y := enemy(enemyNum).y
+        enemy(enemyNum).speed := 0.1
     else
         %If the bullet is fired incread x and y pos
-        enemy(1).shootDelay := 0
-        eBulletPos(1).x -= round((enemy(1).selfLocation.x - enemy(1).targetLocation.x) * enemy(1).speed) div 2
-        eBulletPos(1).y -= round((enemy(1).selfLocation.y - enemy(1).targetLocation.y) * enemy(1).speed) div 2
-        if abs(round((enemy(1).selfLocation.x - enemy(1).targetLocation.x) * enemy(1).speed) div 2) > 35 or abs(round((enemy(1).selfLocation.y - enemy(1).targetLocation.y) * enemy(1).speed) div 2) > 35 then
-            enemy(1).speed -= 0.05
+        enemy(enemyNum).shootDelay := 0
+        eBulletPos(enemyNum).x -= round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2
+        eBulletPos(enemyNum).y -= round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2
+        if abs(round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2) > 35 or abs(round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2) > 35 then
+            enemy(enemyNum).speed -= 0.05
         end if
-        enemy(1).speed += 0.001
-        Sprite.Show(enemy(1).bullet)
+        enemy(enemyNum).speed += 0.001
+        Sprite.Show(enemy(enemyNum).bullet)
     end if
-    Font.Draw(intstr(round((enemy(1).selfLocation.x - enemy(1).targetLocation.x) * enemy(1).speed) div 2),0,800,font1,white)
-    View.Update
+Font.Draw(intstr(round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2),0,800,font1,white)
+View.Update
 %Animate Bullet
 
-    Sprite.Animate(enemy(1).bullet,bulletIMG,eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,true)
-    Sprite.Animate(enemy(1).SPR,enemySprite270(enemyFrame),enemy(1).x+camera.x,enemy(1).y+camera.y,true)
-    %If the bullet hits a wall or the player, hide it and reset the shooting proc
-    if collisionDetect(eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,false) or key('p')/*or Math.Distance(eBulletPos(1).x-20,eBulletPos(1).y-20,maxx div 2-camera.x,maxy div 2-camera.x) < 50 */then
-        enemy(1).shooting := false
-        Sprite.Hide(enemy(1).bullet)
-    end if
+Sprite.Animate(enemy(enemyNum).bullet,bulletIMG,eBulletPos(enemyNum).x+camera.x,eBulletPos(enemyNum).y+camera.y,true)
+Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+%If the bullet hits a wall or the player, hide it and reset the shooting proc
+if collisionDetect(eBulletPos(enemyNum).x+camera.x,eBulletPos(enemyNum).y+camera.y,false) or key('p')/*or Math.Distance(eBulletPos(1).x-20,eBulletPos(1).y-20,maxx div 2-camera.x,maxy div 2-camera.x) < 50 */then
+enemy(enemyNum).shooting := false
+Sprite.Hide(enemy(enemyNum).bullet)
+end if
 end enemyShooting
 
-proc enemyReact
-    if enemy(1).eyesOn then
-        enemy(1).pLast.x := maxx div 2 - camera.x
-        enemy(1).pLast.y := maxy div 2 - camera.y
+proc enemyReact(enemyNum : int)
+    if enemy(enemyNum).eyesOn then
+        enemy(enemyNum).pLast.x := maxx div 2 - camera.x
+        enemy(enemyNum).pLast.y := maxy div 2 - camera.y
     end if
-    if enemy(1).eyesOn then
-        enemyShooting
+    if enemy(enemyNum).eyesOn then
+        enemyShooting(enemyNum)
     end if
-    if enemy(1).eyesOn = false then
-        if enemy(1).pLast.x not= -1 then
-            enemy(1).status := "neutral"
-            aStar(enemy(1).x,enemy(1).y,enemy(1).pLast.x,enemy(1).pLast.y)
+    if enemy(enemyNum).eyesOn = false then
+        if enemy(enemyNum).pLast.x not= -1 then
+            enemy(enemyNum).status := "neutral"
+            aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).pLast.x,enemy(enemyNum).pLast.y,enemyNum)
         end if    
     end if
-    if shoot or noiseSearch and enemy(1).eyesOn = false then
-        noiseSearch := true
-        if setPlayerPos then
-            tempPX := maxx div 2 - camera.x
-            tempPY := maxy div 2 - camera.y
-        setPlayerPos := false
+    if shoot or enemy(enemyNum).noiseSearch and enemy(enemyNum).eyesOn = false then
+        enemy(enemyNum).noiseSearch := true
+        if enemy(enemyNum).setPlayerPos then
+            enemy(enemyNum).tempPX := maxx div 2 - camera.x
+            enemy(enemyNum).tempPY := maxy div 2 - camera.y
+            enemy(enemyNum).setPlayerPos := false
         end if
-        aStar(enemy(1).x,enemy(1).y,tempPX,tempPY)
+        aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).tempPX,enemy(enemyNum).tempPY,enemyNum)
     end if
 end enemyReact
 
 loop
-    if Math.Distance(bulletPos(1).x-camera.x,bulletPos(1).y-camera.y,enemy(1).x,enemy(1).y) < 50 and shoot then
-        enemy(1).dead := true
-        enemy(1).status := "neutral"
-    end if
-    if Math.Distance(eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,maxx div 2,maxy div 2) < 50 and enemy(1).shooting then
-        quit
-    end if
+% Player Based Procedures(only run once)
     mousewhere(mousex,mousey,button)
-    playerRoom := roomAssign(maxx div 2,maxy div 2)
-    enemy(1).enemyRoom := roomAssign(enemy(1).x+camera.x,enemy(1).y+camera.y)
-    if enemy(1).dead = false then
-        sightCheck
-        enemyReact
-        if enemy(1).status = "searching" then
-            enemyPathing
-        end if
-    end if
     playerAnimate
     movement
     playerShoot
-    if enemy(1).status = "neutral" then
-        AISearch(1)
+    playerRoom := roomAssign(maxx div 2,maxy div 2)
+    if enemy(1).dead = false then
+        if Math.Distance(eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,maxx div 2,maxy div 2) < 50 and enemy(1).shooting then
+            quit
+            %Main Menu/Retry
+        end if
     end if
-    if enemy(2).status = "neutral" then
-        AISearch(2)
-    end if
+    %%%%%%%%%%%%%%%%%%%%%
+    for i : 1 .. 2
+        % Default Walk loop while not engaged with player
+        if enemy(i).status = "neutral" then
+            AISearch(i)
+        end if
+        % Assign a room based on enemy position
+        enemy(i).enemyRoom := roomAssign(enemy(i).x+camera.x,enemy(i).y+camera.y)
+        % Check if enemy has been hit with bullet
+        if Math.Distance(bulletPos(1).x-camera.x,bulletPos(1).y-camera.y,enemy(i).x,enemy(i).y) < 50 and shoot then
+            enemy(i).dead := true
+            enemy(i).status := "neutral"
+        end if
+        % Search for player and shoot back
+        if enemy(i).dead = false then
+            sightCheck(i)
+            enemyReact(i)
+            if enemy(i).status = "searching" then
+                enemyPathing(i)
+            end if
+        end if
+    end for
+    View.Update
 end loop
