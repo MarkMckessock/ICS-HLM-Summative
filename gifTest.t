@@ -66,6 +66,8 @@ record
     goal : coordinate
     openX : int
     openY : int
+    bulletPos : coordinate
+    start_room : int
 end record
 
 type box:
@@ -98,7 +100,6 @@ record
     x: range
     y : range
 end record
-var eBulletPos : array 1 .. 3 of coordinate
 var pathing : boolean := false
 var counter :int := 0
 var pathfind : boolean := false
@@ -138,8 +139,6 @@ var enemy1Q : flexible array 1 .. 0 of arrayElement
 var enemy1Searched : flexible array 1 .. 0 of arrayElement
 var enemy2Q : flexible array 1 .. 0 of arrayElement
 var enemy2Searched : flexible array 1 .. 0 of arrayElement
-var divVal : int := 2
-var detect : string := ""
 var pics    : array 1 .. numFrames of int
 var pics180 : array 1 .. numFrames of int
 var pics45  : array 1 .. numFrames of int
@@ -149,16 +148,14 @@ var pics270 : array 1 .. numFrames of int
 var pics225 : array 1 .. numFrames of int
 var pics315 : array 1 .. numFrames of int
 var chars: array char of boolean
-var pathfound : boolean := false
 var x,y, speed, mousex, mousey, button: int
 var map1 : int := Pic.FileNew("mainLevel.jpg")
 var ratio, angle : real
 var font1 : int := Font.New("serif:12")
 var playerFrame : int := 1
 var enemyFrame : int := 1
-var tempPX,tempPY : int := 0
 var bulletPos : array 1 .. 3 of vector
-    enemy(1).x := 1330
+enemy(1).x := 1330
 enemy(2).x := 2200
 enemy(1).y := 350
 enemy(2).y := 350
@@ -168,15 +165,13 @@ var dist : real
 var playerRoom : string := ""
 enemy(1).enemyPath := false
 enemy(2).enemyPath := false
-var walls : array 1 .. 24 of wall
+var walls : array 1 .. 27 of wall
 var shootDirection : int := 0
 speed := 2
 x := -942
 y := 359
 bulletPos(1).x := maxx div 2
 bulletPos(1).y := maxy div 2
-eBulletPos(1).x := maxx div 2
-eBulletPos(1).y := maxy div 2
 enemy(1).timeOnTarget := 0
 enemy(2).timeOnTarget := 0
 Pic.FileNewFrames ("walkGIFbluetrans.gif", pics, delayTime)
@@ -194,6 +189,9 @@ enemy(1).setPlayerPos := true
 enemy(1).initialize := true
 enemy(1).newPath := false
 enemy(1).eyesOn := false
+enemy(1).bulletPos.x := enemy(1).x
+enemy(1).bulletPos.y := enemy(1).y
+enemy(1).enemyRoom := "null"
 
 enemy(2).dead := false
 enemy(2).pLast.x := -1
@@ -207,6 +205,9 @@ enemy(2).setPlayerPos := true
 enemy(2).initialize := true
 enemy(2).newPath := false
 enemy(2).eyesOn := false
+enemy(2).bulletPos.x := enemy(2).x
+enemy(2).bulletPos.y := enemy(2).y
+enemy(2).enemyRoom := "null"
 for i : 1 .. upper(enemy(1).path)
     enemy(1).path(i).x := 0
     enemy(1).path(i).y := 0
@@ -248,10 +249,49 @@ end for
     pics315(c) := Pic.Rotate(pics(c),315,-1,-1)
 end for
     
-process gunShot
-    Music.PlayFile("_audio/shotgunFire.mp3")
-    Music.PlayFile("_audio/shotgunReload.mp3")
-end gunShot    
+process play_audio(track_name : string)
+    if track_name = "Game" then
+        Music.PlayFile("_audio/05 - Vengeance.mp3")
+    elsif track_name = "gunshot" then
+        Music.PlayFile("_audio/shotgunFire.mp3")
+        Music.PlayFile("_audio/shotgunReload.mp3")
+    elsif track_name = "menu" then
+        Music.PlayFile("_audio/03 - Paris.mp3")
+    end if
+end play_audio 
+
+proc set_enemy_room
+    enemy(1).start_room := Rand.Int(1,7)
+    loop
+        enemy(2).start_room := Rand.Int(1,7)
+        exit when enemy(2).start_room ~= enemy(1).start_room
+    end loop
+    for enemy_num : 1 .. 2
+        if enemy(enemy_num).start_room = 1 then % Carbon
+            enemy(enemy_num).x := Rand.Int(650,1340)
+            enemy(enemy_num).y := Rand.Int(300,930)
+        elsif enemy(enemy_num).start_room = 2 then % Wood
+            enemy(enemy_num).x := Rand.Int(775,1340)
+            enemy(enemy_num).y := Rand.Int(1020,1765)
+        elsif enemy(enemy_num).start_room = 3 then % Long Vert Hall
+            enemy(enemy_num).x := Rand.Int(1453,1756)
+            enemy(enemy_num).y := Rand.Int(308,2155)
+        elsif enemy(enemy_num).start_room = 4 then % Short Vert Hall
+            enemy(enemy_num).x := Rand.Int(365,666)
+            enemy(enemy_num).y := Rand.Int(1045,2155)
+        elsif enemy(enemy_num).start_room = 5 then % Red
+            enemy(enemy_num).x := Rand.Int(1867,2356)
+            enemy(enemy_num).y := Rand.Int(308,1334)
+        elsif enemy(enemy_num).start_room = 6 then % Purple
+            enemy(enemy_num).x := Rand.Int(2467,2899)
+            enemy(enemy_num).y := Rand.Int(1445,1765)
+        elsif enemy(enemy_num).start_room = 7 then % Long Horz Hall
+            enemy(enemy_num).x := Rand.Int(651,2899)
+            enemy(enemy_num).y := Rand.Int(1876,2155)
+        end if
+    end for
+end set_enemy_room  
+set_enemy_room
 
 function whatAngle (xvalue, yvalue : int) : int
     mousewhere(mousex, mousey, button)
@@ -413,6 +453,21 @@ function collisionDetect (x,y: int,character : boolean) : boolean %checks if the
     walls(24).x.upper := 2991 + camera.x
     walls(24).y.lower := 920  + camera.y
     walls(24).y.upper := 990  + camera.y
+    % Top wall of elevator
+    walls(25).x.lower := 1377 + camera.x
+    walls(25).x.upper := 1829 + camera.x
+    walls(25).y.lower := 2572 + camera.y
+    walls(25).y.upper := 2604 + camera.y
+    % Right wall of elevator
+    walls(26).x.lower := 1377 + camera.x
+    walls(26).x.upper := 1412 + camera.x
+    walls(26).y.lower := 2175  + camera.y
+    walls(26).y.upper := 2604 + camera.y
+    % Left wall of elevator
+    walls(27).x.lower := 1795 + camera.x
+    walls(27).x.upper := 1829 + camera.x
+    walls(27).y.lower := 2175  + camera.y
+    walls(27).y.upper := 2604  + camera.y
     
     postMove.x := x
     postMove.y := y
@@ -458,7 +513,10 @@ proc draw
             grid(i,j).rightT.y := j*50
             grid(i,j).leftT.x := i*50-50
             grid(i,j).leftT.y :=j*50
-            if collisionDetect(grid(i,j).leftB.x+camera.x, grid(i,j).leftB.y+camera.y,true)  or collisionDetect(grid(i,j).rightB.x+camera.x,grid(i,j).rightB.y+camera.y,true) or collisionDetect(grid(i,j).leftT.x+camera.x,grid(i,j).leftT.y+camera.y,true) or collisionDetect(grid(i,j).rightT.x+camera.x,grid(i,j).rightT.y+camera.y,true)then
+            if collisionDetect(grid(i,j).leftB.x+camera.x, grid(i,j).leftB.y+camera.y,true)  or
+                collisionDetect(grid(i,j).rightB.x+camera.x,grid(i,j).rightB.y+camera.y,true) or
+                collisionDetect(grid(i,j).leftT.x+camera.x,grid(i,j).leftT.y+camera.y,true) or
+                collisionDetect(grid(i,j).rightT.x+camera.x,grid(i,j).rightT.y+camera.y,true) then
                 grid(i,j).wall := true
             end if
         end for
@@ -491,10 +549,8 @@ procedure movement
     if enemy(1).noiseSearch then
         Font.Draw("Enemy 2 NoiseSearch", 0, 570, font1, black)
     end if
-    if shoot then
-        Font.Draw("Player Shoot",0,510,font1,black)
-    end if
-    Font.Draw("Enemy 1 Status: " + enemy(1).status,0,480,font1,black)
+    Font.Draw("Enemy 1 room " + enemy(1).enemyRoom + " Enemy 2 Room " + enemy(2).enemyRoom,0,510,font1,black)
+    Font.Draw("Player Room " + playerRoom,0,480,font1,black)
     Font.Draw("Enemy 2 Status: " + enemy(2).status,0,450,font1,white)
     if enemy(1).eyesOn then
         Font.Draw("Enemy 1 Eyes on",0,420,font1,white)  
@@ -556,7 +612,10 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
     if enemy(enemyNum).initialize then
         for i : 1 .. 60
             for j : 1 .. 53
-                if startX >= grid(i,j).leftB.x and startX < grid(i,j).rightB.x and startY >= grid(i,j).leftB.y and startY < grid(i,j).leftT.y then
+                if startX >= grid(i,j).leftB.x and 
+                    startX < grid(i,j).rightB.x and 
+                    startY >= grid(i,j).leftB.y and 
+                    startY < grid(i,j).leftT.y then
                     enemy(enemyNum).start.x := i
                     enemy(enemyNum).start.y := j
                     grid(i,j).start := true
@@ -564,7 +623,10 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                     q(upper(q)).a := i
                     q(upper(q)).b := j
                 end if
-                if goalX >= grid(i,j).leftB.x and goalX < grid(i,j).rightB.x and goalY >= grid(i,j).leftB.y and goalY < grid(i,j).leftT.y then
+                if goalX >= grid(i,j).leftB.x and 
+                    goalX < grid(i,j).rightB.x and
+                    goalY >= grid(i,j).leftB.y and
+                    goalY < grid(i,j).leftT.y then
                     grid(i,j).goal := true
                     grid(i,j).wall := false
                     enemy(enemyNum).goal.x := i
@@ -574,7 +636,9 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
         end for
             enemy(enemyNum).initialize := false
     end if
-    if enemy(enemyNum).goal.x not= enemy(enemyNum).start.x and enemy(enemyNum).goal.y not= enemy(enemyNum).start.y then
+    
+    if enemy(enemyNum).goal.x not= enemy(enemyNum).start.x or 
+        enemy(enemyNum).goal.y not= enemy(enemyNum).start.y then
         %Open first item in queue and remove from list
         enemy(enemyNum).openX := q(lower(q)).a
         enemy(enemyNum).openY := q(lower(q)).b
@@ -589,13 +653,18 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
         %Add surrounding tiles to queue
         %Up Tile
         if enemy(enemyNum).openX+1 <= upper(grid,1) then
-            if grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY). wall = false and contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,searched) = false and contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,q) = false then
+            if grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY). wall = false and 
+                contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,searched) = false and 
+                contains(enemy(enemyNum).openX+1,enemy(enemyNum).openY,q) = false then
                 new q, upper(q) + 1
                 q(upper(q)).a := enemy(enemyNum).openX + 1
                 q(upper(q)).b := enemy(enemyNum).openY
                 grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY).parent.x := enemy(enemyNum).openX
                 grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY).parent.y := enemy(enemyNum).openY
-                q(upper(q)).fScore := round( 8*(abs((enemy(enemyNum).openX+1)-enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).goal.y)) + (abs((enemy(enemyNum).openX+1)-enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).start.y)))
+                q(upper(q)).fScore := round( 8*(abs(enemy(enemyNum).openX+1 - enemy(enemyNum).goal.x) + 
+                    abs(enemy(enemyNum).openY   - enemy(enemyNum).goal.y)) + 
+                    abs(enemy(enemyNum).openX+1 - enemy(enemyNum).start.x) + 
+                    abs(enemy(enemyNum).openY   - enemy(enemyNum).start.y))
             end if
         end if
         %Down Tile
@@ -848,7 +917,7 @@ proc enemyPathing(enemyNum : int)
     if enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x < 0 then
         enemy(enemyNum).x += 2
         enemy(enemyNum).moveDirection := "right"
-        Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(1).x+camera.x,enemy(enemyNum).y+camera.y,true)
+        Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     elsif enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x > 0 then
         enemy(enemyNum).x -= 2
         enemy(enemyNum).moveDirection := "left"
@@ -879,10 +948,10 @@ proc enemyPathing(enemyNum : int)
 end enemyPathing
 
 proc playerShoot
-    %fork gunShot
     if key(' ') and (Time.Elapsed - shootDelay) > 1000 then
         shootDelay := Time.Elapsed
         shoot := true
+        fork play_audio("Game")
     end if
     if shoot then
         if shootDirection not= playerDirection and shootDirection not= 0 then
@@ -892,8 +961,8 @@ proc playerShoot
         Sprite.Animate(bulletSPR,bulletIMG,bulletPos(1).x,bulletPos(1).y,true)
         if playerDirection = 1 then
             shootDirection := 1
-            bulletPos(1).x += 50
-            if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x-10,bulletPos(1).y,false) then
+            bulletPos(1).x += 40
+            if bulletPos(1).x > maxx + 50 or collisionDetect(bulletPos(1).x+10,bulletPos(1).y,false) or collisionDetect(bulletPos(1).x+20 ,bulletPos(1).y,false) then
                 shoot:= false
                 bulletPos(1).x := maxx div 2
                 Sprite.Hide(bulletSPR)
@@ -901,8 +970,8 @@ proc playerShoot
             end if
         elsif playerDirection = 2 then
             shootDirection := 2
-            bulletPos(1).y += 50
-            bulletPos(1).x += 50
+            bulletPos(1).y += 40
+            bulletPos(1).x += 40
             if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x-20,bulletPos(1).y,false) then
                 shoot:= false
                 bulletPos(1).y := maxy div 2
@@ -912,7 +981,7 @@ proc playerShoot
             end if
         elsif playerDirection = 3 then
             shootDirection := 3
-            bulletPos(1).y += 50
+            bulletPos(1).y += 40
             if bulletPos(1).y > maxy or collisionDetect(bulletPos(1).x,bulletPos(1).y-50,false) then
                 shoot:= false
                 bulletPos(1).y := maxy div 2
@@ -921,8 +990,8 @@ proc playerShoot
             end if
         elsif playerDirection = 4 then
             shootDirection := 4
-            bulletPos(1).x -= 50
-            bulletPos(1).y += 50
+            bulletPos(1).x -= 40
+            bulletPos(1).y += 40
             if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y-50,false) then
                 shoot:= false
                 bulletPos(1).x := maxx div 2
@@ -932,10 +1001,41 @@ proc playerShoot
             end if 
         elsif playerDirection = 5 then
             shootDirection := 5
-            bulletPos(1).x -= 50
-            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x+20,bulletPos(1).y,false) then
+            bulletPos(1).x -= 40
+            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x-20,bulletPos(1).y,false) or collisionDetect(bulletPos(1).x-5,bulletPos(1).y,false) then
                 shoot:= false
                 bulletPos(1).x := maxx div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if 
+        elsif playerDirection = 6 then
+            shootDirection := 6
+            bulletPos(1).x -= 40
+            bulletPos(1).y -= 40
+            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x-20,bulletPos(1).y,false) or collisionDetect(bulletPos(1).x-5,bulletPos(1).y,false) then
+                shoot:= false
+                bulletPos(1).x := maxx div 2
+                bulletPos(1).y := maxy div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if 
+        elsif playerDirection = 7 then
+            shootDirection := 7
+            bulletPos(1).y -= 40
+            if bulletPos(1).y < -20 or collisionDetect(bulletPos(1).x-20,bulletPos(1).y,false) or collisionDetect(bulletPos(1).x-5,bulletPos(1).y,false) then
+                shoot:= false
+                bulletPos(1).y := maxy div 2
+                Sprite.Hide(bulletSPR)
+                shootDirection := 0
+            end if 
+        elsif playerDirection = 8 then
+            shootDirection := 8
+            bulletPos(1).y -= 40
+            bulletPos(1).x += 40
+            if bulletPos(1).x < -20 or collisionDetect(bulletPos(1).x-20,bulletPos(1).y,false) or collisionDetect(bulletPos(1).x-5,bulletPos(1).y,false) then
+                shoot:= false
+                bulletPos(1).x := maxx div 2
+                bulletPos(1).y := maxy div 2
                 Sprite.Hide(bulletSPR)
                 shootDirection := 0
             end if 
@@ -978,7 +1078,7 @@ function roomAssign(x,y:int) :string
         result "intSVH&LHH"
     elsif x >= 2447+camera.x and x <= 2918+camera.x and y >= 1425+camera.y and y <= 1785+camera.y then
         result "intPurple"
-    elsif x >= 1433+camera.x and x <= 1776+camera.x and y >= 288+camera.y  and y <= 2175+camera.y then
+    elsif x >= 1413+camera.x and x <= 1776+camera.x and y >= 288+camera.y  and y <= 2175+camera.y then
         result "longVertHall"
     elsif x >= 631+camera.x  and x <= 1360+camera.x and y >= 288+camera.y  and y <= 952+camera.y  then
         result "carbon"
@@ -1011,8 +1111,8 @@ proc enemyShooting(enemyNum : int)
     end if
     if enemy(enemyNum).shooting = false then
         %Keep bullet origin and speed stuck to enemy, stop them changing once fired
-        eBulletPos(enemyNum).x := enemy(enemyNum).x
-        eBulletPos(enemyNum).y := enemy(enemyNum).y
+        enemy(enemyNum).bulletPos.x := enemy(enemyNum).x
+        enemy(enemyNum).bulletPos.y := enemy(enemyNum).y
         enemy(enemyNum).targetLocation.x := (maxx div 2 - camera.x)
         enemy(enemyNum).targetLocation.y := (maxy div 2 - camera.y)
         enemy(enemyNum).selfLocation.x := enemy(enemyNum).x
@@ -1021,22 +1121,30 @@ proc enemyShooting(enemyNum : int)
     else
         %If the bullet is fired incread x and y pos
         enemy(enemyNum).shootDelay := 0
-        eBulletPos(enemyNum).x -= round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2
-        eBulletPos(enemyNum).y -= round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2
-        if abs(round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2) > 35 or abs(round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2) > 35 then
+        enemy(enemyNum).bulletPos.x -= round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2
+        enemy(enemyNum).bulletPos.y -= round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2
+        if abs(round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2) > 35 or 
+        abs(round((enemy(enemyNum).selfLocation.y - enemy(enemyNum).targetLocation.y) * enemy(enemyNum).speed) div 2) > 35 then
             enemy(enemyNum).speed -= 0.05
         end if
         enemy(enemyNum).speed += 0.001
         Sprite.Show(enemy(enemyNum).bullet)
     end if
-Font.Draw(intstr(round((enemy(enemyNum).selfLocation.x - enemy(enemyNum).targetLocation.x) * enemy(enemyNum).speed) div 2),0,800,font1,white)
-View.Update
 %Animate Bullet
 
-Sprite.Animate(enemy(enemyNum).bullet,bulletIMG,eBulletPos(enemyNum).x+camera.x,eBulletPos(enemyNum).y+camera.y,true)
-Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+Sprite.Animate(enemy(enemyNum).bullet,bulletIMG,enemy(enemyNum).bulletPos.x+camera.x,enemy(enemyNum).bulletPos.y+camera.y,true)
+if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 315 or whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 45 then
+    Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 45 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 135 then
+    Sprite.Animate(enemy(enemyNum).SPR,enemySprite90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >=135 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 225 then
+    Sprite.Animate(enemy(enemyNum).SPR,enemySprite180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 225 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 315 then
+    Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+end if
+
 %If the bullet hits a wall or the player, hide it and reset the shooting proc
-if collisionDetect(eBulletPos(enemyNum).x+camera.x,eBulletPos(enemyNum).y+camera.y,false) or key('p')/*or Math.Distance(eBulletPos(1).x-20,eBulletPos(1).y-20,maxx div 2-camera.x,maxy div 2-camera.x) < 50 */then
+if collisionDetect(enemy(enemyNum).bulletPos.x+camera.x,enemy(enemyNum).bulletPos.y+camera.y,false) or key('p')/*or Math.Distance(eBulletPos(1).x-20,eBulletPos(1).y-20,maxx div 2-camera.x,maxy div 2-camera.x) < 50 */then
 enemy(enemyNum).shooting := false
 Sprite.Hide(enemy(enemyNum).bullet)
 end if
@@ -1051,6 +1159,8 @@ proc enemyReact(enemyNum : int)
         enemyShooting(enemyNum)
     end if
     if enemy(enemyNum).eyesOn = false then
+        enemy(enemyNum).bulletPos.x := enemy(enemyNum).x
+        enemy(enemyNum).bulletPos.y := enemy(enemyNum).y
         if enemy(enemyNum).pLast.x not= -1 then
             enemy(enemyNum).status := "neutral"
             aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).pLast.x,enemy(enemyNum).pLast.y,enemyNum)
@@ -1067,6 +1177,14 @@ proc enemyReact(enemyNum : int)
     end if
 end enemyReact
 
+proc main_menu
+    fork play_audio("menu")
+    % Main Menu
+    %loop
+        %mousewhere(mousex,mousey,button)
+    %end loop
+end main_menu
+
 loop
 % Player Based Procedures(only run once)
     mousewhere(mousex,mousey,button)
@@ -1075,7 +1193,7 @@ loop
     playerShoot
     playerRoom := roomAssign(maxx div 2,maxy div 2)
     if enemy(1).dead = false then
-        if Math.Distance(eBulletPos(1).x+camera.x,eBulletPos(1).y+camera.y,maxx div 2,maxy div 2) < 50 and enemy(1).shooting then
+        if Math.Distance(enemy(1).bulletPos.x+camera.x,enemy(1).bulletPos.y+camera.y,maxx div 2,maxy div 2) < 50 and enemy(1).shooting then
             quit
             %Main Menu/Retry
         end if
