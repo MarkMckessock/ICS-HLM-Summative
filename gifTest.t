@@ -1178,13 +1178,32 @@ proc enemyReact(enemyNum : int)
 end enemyReact
 
 proc main_menu
+    View.Set("nooffscreenonly")
     fork play_audio("menu")
     % Main Menu
+    Pic.ScreenLoad("menu/Menu UI - Play_00000.png",0,0,0)
+    View.Update
+    delay(5000)
+    for i : 0 .. 1800
+        if i < 10 then 
+            Pic.ScreenLoad("menu/Menu UI - Play_0000" + intstr(i),0,0,0)
+            View.Update
+            delay(1000)
+        elsif i < 100 then
+            Pic.ScreenLoad("menu/Menu UI - Play_000" + intstr(i),0,0,0)
+            View.Update
+            delay(1000)
+        elsif i < 1000 then
+            Pic.ScreenLoad("menu/Menu UI - Play_00" + intstr(i),0,0,0)
+            View.Update
+            delay(1000)
+        end if
+    end for
     %loop
         %mousewhere(mousex,mousey,button)
     %end loop
 end main_menu
-
+main_menu
 loop
 % Player Based Procedures(only run once)
     mousewhere(mousex,mousey,button)
