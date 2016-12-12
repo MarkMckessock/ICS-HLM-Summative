@@ -13,7 +13,6 @@
 View.Set("graphics:1260,900,offscreenonly") % Release
 %View.Set("graphics:1260,900") % Release
 const mainLevel :int := Pic.FileNew("mainLevel.jpg")
-%record items for enemy : player last seen position, dead?
 type vector:
 record
     x, y :int
@@ -30,7 +29,7 @@ record
     x : int
     y : int
 end record
-
+var menu_time : int := Time.Elapsed
 type enemyType:
 record
     x : int
@@ -69,7 +68,7 @@ record
     bulletPos : coordinate
     start_room : int
 end record
-
+var menu_exit : boolean := false
 type box:
 record
     start : boolean
@@ -82,7 +81,7 @@ record
     parent : coordinate
     
 end record
-
+var menu_selection : int
 type arrayElement:
 record
     a : int
@@ -109,6 +108,7 @@ var grid : array 1..60,1..53 of box
 var q : flexible array 1 .. 0 of arrayElement
 var searched : flexible array 1 .. 0 of arrayElement
 var camera : vector := init(0, 0)
+var quit_sprite : int 
 var gridUpdate : int := Time.Elapsed
 var shootDelay : int := Time.Elapsed
 var spongebobPos :vector := init(0, 0)
@@ -124,6 +124,7 @@ var lastFrame : int := 0
 var lastEnemyFrame : int := 0
 var playerDirection : int
 var postMove : vector
+var scores_sprite : int 
     camera.x := -930
 camera.y := 300
 var numFrames := Pic.Frames ("walkGIFbluetrans.gif")
@@ -135,6 +136,7 @@ var enemySprite180 : array 1 .. numFramesEnemy of int
 var enemySprite270 : array 1 .. numFramesEnemy of int
 var test : int := Pic.FileNew("sprPWalkDoubleBarrel_0.bmp")
 var enemy : array 1 .. 3 of enemyType
+var logo_sprite : int
 var enemy1Q : flexible array 1 .. 0 of arrayElement
 var enemy1Searched : flexible array 1 .. 0 of arrayElement
 var enemy2Q : flexible array 1 .. 0 of arrayElement
@@ -153,6 +155,7 @@ var map1 : int := Pic.FileNew("mainLevel.jpg")
 var ratio, angle : real
 var font1 : int := Font.New("serif:12")
 var playerFrame : int := 1
+var play_sprite : int
 var enemyFrame : int := 1
 var bulletPos : array 1 .. 3 of vector
 enemy(1).x := 1330
@@ -1177,34 +1180,141 @@ proc enemyReact(enemyNum : int)
     end if
 end enemyReact
 
+%Declare Menu Gifs
+    %Logo Frames
+    var num_frames_logo : int := Pic.Frames("gifs/hotlineottawa-120.gif")
+    var delayTime3 : int
+    var logo_pics : array 1 .. num_frames_logo of int
+    Pic.FileNewFrames("gifs/hotlineottawa-120.gif",logo_pics,delayTime3)
+    
+    %Play Selected Frames
+    var num_frames_play : int := Pic.Frames("gifs/play-selected-120.gif")
+    var delayTime4 : int
+    var play_selected_pics : array 1 .. num_frames_play of int
+    Pic.FileNewFrames("gifs/play-selected-120.gif",play_selected_pics,delayTime4)
+    %Play Unselected Frames
+    var num_frames_play_blank : int := Pic.Frames("gifs/play-blank-test.gif")
+    var delayTime5 : int
+    var play_unselected_pics : array 1 .. num_frames_play_blank of int
+    Pic.FileNewFrames("gifs/play-blank-test.gif",play_unselected_pics,delayTime5)
+
+    %Selected Scores Frames
+    var num_frames_scores_selected : int := Pic.Frames("gifs/scores-selected-120.gif")
+    var scores_selected_pics : array 1 .. num_frames_scores_selected of int
+    Pic.FileNewFrames("gifs/scores-selected-120.gif",scores_selected_pics,delayTime)
+    %Unselected Scores Frames
+    var num_frames_scores_unselected : int := Pic.Frames("gifs/scores-blank-120-test.gif")
+    var scores_unselected_pics : array 1 .. num_frames_scores_unselected of int
+    Pic.FileNewFrames("gifs/scores-blank-120-test.gif",scores_unselected_pics,delayTime)
+    
+    %Selected Quit Frames
+    var num_frames_quit_selected : int := Pic.Frames("gifs/quit-selected-120.gif")
+    var quit_selected_pics : array 1 .. num_frames_quit_selected of int
+    Pic.FileNewFrames("gifs/quit-selected-120.gif",quit_selected_pics,delayTime)
+    %Unselected Quit Frames
+    var num_frames_quit_unselected : int := Pic.Frames("gifs/quit-blank-120-black.gif")
+    var quit_unselected_pics : array 1 .. num_frames_quit_unselected of int
+    Pic.FileNewFrames("gifs/quit-blank-120-black.gif",quit_unselected_pics,delayTime)
+    /*
+    %Background Frames
+    var num_frames_background : int := Pic.Frames("gifs/Background.gif")
+    var background_pics : array 1 .. num_frames_background of int
+    Pic.FileNewFrames("gifs/Background.gif",background_pics,delayTime)
+    */
+logo_sprite := Sprite.New(logo_pics(1))
+Sprite.SetPosition(logo_sprite,maxx div 2,maxy div 2+200,true)    
+
+play_sprite := Sprite.New(logo_pics(1))
+Sprite.SetPosition(play_sprite,maxx div 2,maxy div 2+75,true)
+    
+quit_sprite:= Sprite.New(quit_selected_pics(1))
+Sprite.SetPosition(quit_sprite,maxx div 2, maxy div 2-130,true)
+
+scores_sprite:= Sprite.New(scores_selected_pics(1))
+Sprite.SetPosition(scores_sprite,maxx div 2, maxy div 2-25,true)
+
 proc main_menu
     View.Set("nooffscreenonly")
     fork play_audio("menu")
-    % Main Menu
-    Pic.ScreenLoad("menu/Menu UI - Play_00000.png",0,0,0)
-    View.Update
-    delay(5000)
-    for i : 0 .. 1800
-        if i < 10 then 
-            Pic.ScreenLoad("menu/Menu UI - Play_0000" + intstr(i),0,0,0)
-            View.Update
-            delay(1000)
-        elsif i < 100 then
-            Pic.ScreenLoad("menu/Menu UI - Play_000" + intstr(i),0,0,0)
-            View.Update
-            delay(1000)
-        elsif i < 1000 then
-            Pic.ScreenLoad("menu/Menu UI - Play_00" + intstr(i),0,0,0)
-            View.Update
-            delay(1000)
-        end if
-    end for
+    
+    var logo_frame_count : int := 1
+    var logo_increase : boolean := true
+
+ 
+    Sprite.Show(logo_sprite)
+    Sprite.Show(play_sprite)
+    Sprite.Show(scores_sprite)
+    Sprite.Show(quit_sprite)
+    
+    menu_selection := 1
+    colorback(red)
+    cls
+    
+    loop
+        Input.KeyDown(chars)
+            Sprite.ChangePic(logo_sprite,logo_pics(logo_frame_count))
+            if menu_selection = 1 then
+                Sprite.ChangePic(play_sprite,play_selected_pics(logo_frame_count))
+                Sprite.ChangePic(scores_sprite,scores_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(quit_sprite,quit_unselected_pics(logo_frame_count))
+            elsif menu_selection = 2 then
+                Sprite.ChangePic(play_sprite,play_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(scores_sprite,scores_selected_pics(logo_frame_count))
+                Sprite.ChangePic(quit_sprite,quit_unselected_pics(logo_frame_count))
+            elsif menu_selection = 3 then
+                Sprite.ChangePic(play_sprite,play_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(scores_sprite,scores_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(quit_sprite,quit_selected_pics(logo_frame_count))                
+            end if
+            delay(100)
+            if logo_increase then
+                logo_frame_count += 1
+            else 
+                logo_frame_count -= 1
+            end if
+            if logo_frame_count = 85 then
+                logo_increase := false
+            elsif logo_frame_count = 1 then
+                logo_increase := true
+            end if
+            if chars(KEY_DOWN_ARROW) and Time.Elapsed - menu_time > 300 then
+                menu_time := Time.Elapsed
+                if menu_selection = 3 then
+                    menu_selection := 1
+                else
+                    menu_selection += 1
+                end if
+            elsif chars(KEY_UP_ARROW) and Time.Elapsed - menu_time > 300 then
+                menu_time := Time.Elapsed
+                if menu_selection = 1 then
+                    menu_selection := 3
+                else
+                    menu_selection -= 1
+                end if
+            end if
+            if menu_selection = 1 and chars(KEY_ENTER) then
+                menu_exit := true
+                exit
+            elsif menu_selection = 3 and chars(KEY_ENTER) then
+                Window.Hide(Window.GetActive)
+                quit
+            end if
+    end loop
     %loop
         %mousewhere(mousex,mousey,button)
     %end loop
 end main_menu
 main_menu
 loop
+    colorback(white)
+    View.Set("offscreenonly")
+    if menu_exit then
+        menu_exit := false
+        Sprite.Hide(quit_sprite)
+        Sprite.Hide(logo_sprite)
+        Sprite.Hide(scores_sprite)
+        Sprite.Hide(play_sprite)
+    end if
 % Player Based Procedures(only run once)
     mousewhere(mousex,mousey,button)
     playerAnimate
@@ -1213,7 +1323,7 @@ loop
     playerRoom := roomAssign(maxx div 2,maxy div 2)
     if enemy(1).dead = false then
         if Math.Distance(enemy(1).bulletPos.x+camera.x,enemy(1).bulletPos.y+camera.y,maxx div 2,maxy div 2) < 50 and enemy(1).shooting then
-            quit
+            main_menu   
             %Main Menu/Retry
         end if
     end if
