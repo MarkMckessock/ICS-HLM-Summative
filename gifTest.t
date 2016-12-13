@@ -69,6 +69,7 @@ record
     start_room : int
 end record
 var menu_exit : boolean := false
+var background_frame : int := 1
 type box:
 record
     start : boolean
@@ -112,7 +113,7 @@ var quit_sprite : int
 var gridUpdate : int := Time.Elapsed
 var shootDelay : int := Time.Elapsed
 var spongebobPos :vector := init(0, 0)
-var eKill1IMG : int := Pic.FileNew("enemyKill1.bmp")
+var eKill1IMG : int := Pic.FileNew("enemy_dead_guts.gif")
 var eKill1SPR : int := Sprite.New(eKill1IMG)
 var enemyDead : boolean := false
 var inputEffects :array 1 .. 4 of inputEffect := init(init('a', init(6, 0)), init('d', init(-6, 0)), init('w', init(0, -6)), init('s', init(0,6)))
@@ -127,13 +128,9 @@ var postMove : vector
 var scores_sprite : int 
     camera.x := -930
 camera.y := 300
-var numFrames := Pic.Frames ("walkGIFbluetrans.gif")
-var numFramesEnemy := Pic.Frames ("walkGIFbluetransEnemy.gif")
+var player_num_frames := Pic.Frames ("player_walk_new.gif")
+var enemy_num_frames := Pic.Frames ("enemy_shoot_0.gif")
 var delayTime,delayTime2 : int
-var enemySprite    : array 1 .. numFramesEnemy of int
-var enemySprite90  : array 1 .. numFramesEnemy of int
-var enemySprite180 : array 1 .. numFramesEnemy of int
-var enemySprite270 : array 1 .. numFramesEnemy of int
 var test : int := Pic.FileNew("sprPWalkDoubleBarrel_0.bmp")
 var enemy : array 1 .. 3 of enemyType
 var logo_sprite : int
@@ -141,14 +138,6 @@ var enemy1Q : flexible array 1 .. 0 of arrayElement
 var enemy1Searched : flexible array 1 .. 0 of arrayElement
 var enemy2Q : flexible array 1 .. 0 of arrayElement
 var enemy2Searched : flexible array 1 .. 0 of arrayElement
-var pics    : array 1 .. numFrames of int
-var pics180 : array 1 .. numFrames of int
-var pics45  : array 1 .. numFrames of int
-var pics90  : array 1 .. numFrames of int
-var pics135 : array 1 .. numFrames of int
-var pics270 : array 1 .. numFrames of int
-var pics225 : array 1 .. numFrames of int
-var pics315 : array 1 .. numFrames of int
 var chars: array char of boolean
 var x,y, speed, mousex, mousey, button: int
 var map1 : int := Pic.FileNew("mainLevel.jpg")
@@ -177,8 +166,6 @@ bulletPos(1).x := maxx div 2
 bulletPos(1).y := maxy div 2
 enemy(1).timeOnTarget := 0
 enemy(2).timeOnTarget := 0
-Pic.FileNewFrames ("walkGIFbluetrans.gif", pics, delayTime)
-Pic.FileNewFrames ("walkGIFbluetransEnemy.gif", enemySprite, delayTime2)
 % Sets all elements to 0 to see when the array elements start
 enemy(1).dead := false
 enemy(1).pLast.x := -1
@@ -215,21 +202,40 @@ for i : 1 .. upper(enemy(1).path)
     enemy(1).path(i).x := 0
     enemy(1).path(i).y := 0
 end for
-    enemy(1).SPR := Sprite.New(enemySprite(1))
-enemy(2).SPR := Sprite.New(enemySprite(1))
-var player: int := Sprite.New(pics(1))
+    
+
 
 cls
+var enemy_walk_frames_0    : array 1 .. enemy_num_frames of int
+Pic.FileNewFrames ("enemy_walk_0.gif", enemy_walk_frames_0, delayTime)
+var enemy_walk_frames_90  : array 1 .. enemy_num_frames of int
+Pic.FileNewFrames ("enemy_walk_90.gif", enemy_walk_frames_90, delayTime)
+var enemy_walk_frames_180 : array 1 .. enemy_num_frames of int
+Pic.FileNewFrames ("enemy_walk_180.gif", enemy_walk_frames_180, delayTime)
+var enemy_walk_frames_270 : array 1 .. enemy_num_frames of int
+Pic.FileNewFrames ("enemy_walk_270.gif", enemy_walk_frames_270, delayTime)
 
-for c : 1 .. numFramesEnemy
-    enemySprite90(c) := Pic.Rotate(enemySprite(c),90,-1,-1)
-end for
-    for c : 1 .. numFramesEnemy
-    enemySprite180(c) := Pic.Rotate(enemySprite(c),180,-1,-1)
-end for
-    for c : 1 .. numFramesEnemy
-    enemySprite270(c) := Pic.Rotate(enemySprite(c),270,-1,-1)
-end for
+var player_walk_frames_0    : array 1 .. player_num_frames of int
+Pic.FileNewFrames ("player_walk_new.gif", player_walk_frames_0, delayTime)
+var player_walk_frames_45 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_45.gif",player_walk_frames_45,delayTime)
+var player_walk_frames_90 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_90.gif",player_walk_frames_90,delayTime)
+var player_walk_frames_135 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_135.gif",player_walk_frames_135,delayTime)
+var player_walk_frames_180 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_180.gif",player_walk_frames_180,delayTime)
+var player_walk_frames_225 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_225.gif",player_walk_frames_225,delayTime)
+var player_walk_frames_270 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_270.gif",player_walk_frames_270,delayTime)
+var player_walk_frames_315 : array 1 .. player_num_frames of int
+Pic.FileNewFrames("player_walk_new_315.gif",player_walk_frames_315,delayTime)
+
+var player: int := Sprite.New(player_walk_frames_0(1))
+enemy(1).SPR := Sprite.New(enemy_walk_frames_0(1))
+enemy(2).SPR := Sprite.New(enemy_walk_frames_0(1))
+/*
     for c : 1 .. numFrames
     pics180(c) := Pic.Rotate(pics(c),180,-1,-1)
 end for
@@ -251,7 +257,7 @@ end for
     for c : 1 .. numFrames
     pics315(c) := Pic.Rotate(pics(c),315,-1,-1)
 end for
-    
+    */
 process play_audio(track_name : string)
     if track_name = "Game" then
         Music.PlayFile("_audio/05 - Vengeance.mp3")
@@ -777,32 +783,32 @@ procedure playerAnimate
     if Time.Elapsed - lastFrame > 100 then
         lastFrame := Time.Elapsed
         if whatAngle(maxx div 2,maxy div 2) < 22.5 or whatAngle(maxx div 2,maxy div 2) >= 337.5 then
-            Sprite.ChangePic(player, pics(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_0(playerFrame))
             playerDirection := 1 %Facing Right
         elsif whatAngle(maxx div 2,maxy div 2) >= 22.5 and whatAngle(maxx div 2,maxy div 2) < 67.5 then
-            Sprite.ChangePic(player, pics45(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_45(playerFrame))
             playerDirection := 2 % Facing Right and Up
         elsif whatAngle(maxx div 2,maxy div 2) >= 67.5 and whatAngle(maxx div 2,maxy div 2) < 112.5 then
-            Sprite.ChangePic(player, pics90(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_90(playerFrame))
             playerDirection := 3 % Facing Up
         elsif whatAngle(maxx div 2,maxy div 2) >= 112.5 and whatAngle(maxx div 2,maxy div 2) < 157.5 then
-            Sprite.ChangePic(player, pics135(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_135(playerFrame))
             playerDirection := 4 % Facing Left and Up
         elsif whatAngle(maxx div 2,maxy div 2) >= 157.5 and whatAngle(maxx div 2,maxy div 2) < 202.5 then
-            Sprite.ChangePic(player, pics180(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_180(playerFrame))
             playerDirection:=  5 % Facing Left
         elsif whatAngle(maxx div 2,maxy div 2) >= 202.5 and whatAngle(maxx div 2,maxy div 2) < 247.5 then
-            Sprite.ChangePic(player, pics225(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_225(playerFrame))
             playerDirection := 6 % Facing Left and Down
         elsif whatAngle(maxx div 2,maxy div 2) >= 247.5 and whatAngle(maxx div 2,maxy div 2) < 292.5 then
-            Sprite.ChangePic(player, pics270(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_270(playerFrame))
             playerDirection := 7 % Facing Down
         elsif whatAngle(maxx div 2,maxy div 2) >= 292.5 and whatAngle(maxx div 2,maxy div 2) < 337.5 then
-            Sprite.ChangePic(player, pics315(playerFrame))
+            Sprite.ChangePic(player, player_walk_frames_315(playerFrame))
             playerDirection := 8 % Facing Right and Down
         end if
         
-        if playerFrame = 8 then
+        if playerFrame = player_num_frames then
             playerFrame := 0
         end if
         playerFrame += 1
@@ -841,28 +847,28 @@ proc AISearch (enemyNum : int)
         end if
         if enemy(enemyNum).moveDirection = "right" then
             if collisionDetect(enemy(enemyNum).x+camera.x+20,enemy(enemyNum).y+camera.y,true) = false then
-                Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+                Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_0(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
                 enemy(enemyNum).x += 2
             else
                 enemy(enemyNum).moveDirection := "null"
             end if
         elsif enemy(enemyNum).moveDirection = "down" then
             if collisionDetect(enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y-20,true) = false then
-                Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+                Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
                 enemy(enemyNum).y -= 2
             else
                 enemy(enemyNum).moveDirection := "null"
             end if
         elsif enemy(enemyNum).moveDirection = "up" then
             if collisionDetect(enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y+20,true) = false then
-                Sprite.Animate(enemy(enemyNum).SPR,enemySprite90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+                Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
                 enemy(enemyNum).y += 2
             else
                 enemy(enemyNum).moveDirection := "null"
             end if
         elsif enemy(enemyNum).moveDirection = "left" then
             if collisionDetect(enemy(enemyNum).x+camera.x-20,enemy(enemyNum).y+camera.y,true) = false then
-                Sprite.Animate(enemy(enemyNum).SPR,enemySprite180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+                Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
                 enemy(enemyNum).x -= 2
             else
                 enemy(enemyNum).moveDirection := "null"
@@ -920,19 +926,19 @@ proc enemyPathing(enemyNum : int)
     if enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x < 0 then
         enemy(enemyNum).x += 2
         enemy(enemyNum).moveDirection := "right"
-        Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+        Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_0(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     elsif enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x > 0 then
         enemy(enemyNum).x -= 2
         enemy(enemyNum).moveDirection := "left"
-        Sprite.Animate(enemy(enemyNum).SPR,enemySprite180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+        Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     elsif enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y < 0 then
         enemy(enemyNum).y += 2
         enemy(enemyNum).moveDirection := "up"
-        Sprite.Animate(enemy(enemyNum).SPR,enemySprite90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+        Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     elsif enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y > 0 then
         enemy(enemyNum).y -= 2
         enemy(enemyNum).moveDirection := "down"
-        Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+        Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
     end if
     
     if enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x > -1 and enemy(enemyNum).x - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.x < 1 and enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y > -1 and enemy(enemyNum).y - grid(enemy(enemyNum).path(enemy(enemyNum).count).x,enemy(enemyNum).path(enemy(enemyNum).count).y).leftB.y < 1 then
@@ -1137,13 +1143,13 @@ proc enemyShooting(enemyNum : int)
 
 Sprite.Animate(enemy(enemyNum).bullet,bulletIMG,enemy(enemyNum).bulletPos.x+camera.x,enemy(enemyNum).bulletPos.y+camera.y,true)
 if whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 315 or whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 45 then
-    Sprite.Animate(enemy(enemyNum).SPR,enemySprite(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_0(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
 elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 45 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 135 then
-    Sprite.Animate(enemy(enemyNum).SPR,enemySprite90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_90(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
 elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >=135 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 225 then
-    Sprite.Animate(enemy(enemyNum).SPR,enemySprite180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_180(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
 elsif whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) >= 225 and whatAngleEnemy(enemy(enemyNum).x,enemy(enemyNum).y) < 315 then
-    Sprite.Animate(enemy(enemyNum).SPR,enemySprite270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
+    Sprite.Animate(enemy(enemyNum).SPR,enemy_walk_frames_270(enemyFrame),enemy(enemyNum).x+camera.x,enemy(enemyNum).y+camera.y,true)
 end if
 
 %If the bullet hits a wall or the player, hide it and reset the shooting proc
@@ -1208,30 +1214,41 @@ end enemyReact
     Pic.FileNewFrames("gifs/scores-blank-120-test.gif",scores_unselected_pics,delayTime)
     
     %Selected Quit Frames
-    var num_frames_quit_selected : int := Pic.Frames("gifs/quit-selected-120.gif")
-    var quit_selected_pics : array 1 .. num_frames_quit_selected of int
-    Pic.FileNewFrames("gifs/quit-selected-120.gif",quit_selected_pics,delayTime)
+    %var num_frames_quit_selected : int := Pic.Frames("gifs/quit-selected-120.gif")
+    %var quit_selected_pics : array 1 .. num_frames_quit_selected of int
+    var quit_selected_pics : int := Pic.FileNew("gifs/quit-selected-120.gif")
+    %Pic.FileNewFrames("gifs/quit-selected-120.gif",quit_selected_pics,delayTime)
     %Unselected Quit Frames
-    var num_frames_quit_unselected : int := Pic.Frames("gifs/quit-blank-120-black.gif")
-    var quit_unselected_pics : array 1 .. num_frames_quit_unselected of int
-    Pic.FileNewFrames("gifs/quit-blank-120-black.gif",quit_unselected_pics,delayTime)
-    /*
+    %var num_frames_quit_unselected : int := Pic.Frames("gifs/quit-blank-120-black.gif")
+    %var quit_unselected_pics : array 1 .. num_frames_quit_unselected of int
+    var quit_unselected_pics : int := Pic.FileNew("gifs/quit-blank-120-black.gif")
+    %Pic.FileNewFrames("gifs/quit-blank-120-black.gif",quit_unselected_pics,delayTime)
+    
     %Background Frames
-    var num_frames_background : int := Pic.Frames("gifs/Background.gif")
+    var num_frames_background : int := Pic.Frames("gifs/background.gif")
     var background_pics : array 1 .. num_frames_background of int
-    Pic.FileNewFrames("gifs/Background.gif",background_pics,delayTime)
-    */
+    Pic.FileNewFrames("gifs/background.gif",background_pics,delayTime)
+    var background_img : int := Pic.FileNew("Background0.jpg")
+    
+var background_img_sprite : int := Sprite.New(background_img)
+Sprite.SetPosition(background_img_sprite,0,0,false)  
+
+var background_slider_sprite : int := Sprite.New(background_pics(1))
+Sprite.SetPosition(background_slider_sprite,0,0,false)
+
 logo_sprite := Sprite.New(logo_pics(1))
 Sprite.SetPosition(logo_sprite,maxx div 2,maxy div 2+200,true)    
 
 play_sprite := Sprite.New(logo_pics(1))
 Sprite.SetPosition(play_sprite,maxx div 2,maxy div 2+75,true)
     
-quit_sprite:= Sprite.New(quit_selected_pics(1))
+quit_sprite:= Sprite.New(quit_selected_pics)
 Sprite.SetPosition(quit_sprite,maxx div 2, maxy div 2-130,true)
 
 scores_sprite:= Sprite.New(scores_selected_pics(1))
 Sprite.SetPosition(scores_sprite,maxx div 2, maxy div 2-25,true)
+
+
 
 proc main_menu
     View.Set("nooffscreenonly")
@@ -1239,12 +1256,14 @@ proc main_menu
     
     var logo_frame_count : int := 1
     var logo_increase : boolean := true
-
- 
+    
+    Sprite.Show(background_slider_sprite)
+    Sprite.Show(background_img_sprite)
     Sprite.Show(logo_sprite)
     Sprite.Show(play_sprite)
     Sprite.Show(scores_sprite)
     Sprite.Show(quit_sprite)
+    
     
     menu_selection := 1
     colorback(red)
@@ -1253,18 +1272,19 @@ proc main_menu
     loop
         Input.KeyDown(chars)
             Sprite.ChangePic(logo_sprite,logo_pics(logo_frame_count))
+            Sprite.ChangePic(background_slider_sprite,background_pics(background_frame))
             if menu_selection = 1 then
                 Sprite.ChangePic(play_sprite,play_selected_pics(logo_frame_count))
                 Sprite.ChangePic(scores_sprite,scores_unselected_pics(logo_frame_count))
-                Sprite.ChangePic(quit_sprite,quit_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(quit_sprite,quit_unselected_pics)
             elsif menu_selection = 2 then
                 Sprite.ChangePic(play_sprite,play_unselected_pics(logo_frame_count))
                 Sprite.ChangePic(scores_sprite,scores_selected_pics(logo_frame_count))
-                Sprite.ChangePic(quit_sprite,quit_unselected_pics(logo_frame_count))
+                Sprite.ChangePic(quit_sprite,quit_unselected_pics)
             elsif menu_selection = 3 then
                 Sprite.ChangePic(play_sprite,play_unselected_pics(logo_frame_count))
                 Sprite.ChangePic(scores_sprite,scores_unselected_pics(logo_frame_count))
-                Sprite.ChangePic(quit_sprite,quit_selected_pics(logo_frame_count))                
+                Sprite.ChangePic(quit_sprite,quit_selected_pics)                
             end if
             delay(100)
             if logo_increase then
@@ -1276,6 +1296,12 @@ proc main_menu
                 logo_increase := false
             elsif logo_frame_count = 1 then
                 logo_increase := true
+            end if
+            
+            background_frame += 1
+            
+            if background_frame = num_frames_background then
+                background_frame := 1
             end if
             if chars(KEY_DOWN_ARROW) and Time.Elapsed - menu_time > 300 then
                 menu_time := Time.Elapsed
