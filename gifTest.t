@@ -1225,13 +1225,14 @@ end enemyReact
     %Pic.FileNewFrames("gifs/quit-blank-120-black.gif",quit_unselected_pics,delayTime)
     
     %Background Frames
-    var num_frames_background : int := Pic.Frames("gifs/background.gif")
+    var num_frames_background : int := Pic.Frames("gifs/background-2fps.gif")
     var background_pics : array 1 .. num_frames_background of int
-    Pic.FileNewFrames("gifs/background.gif",background_pics,delayTime)
-    var background_img : int := Pic.FileNew("Background0.jpg")
-    
-var background_img_sprite : int := Sprite.New(background_img)
-Sprite.SetPosition(background_img_sprite,0,0,false)  
+    Pic.FileNewFrames("gifs/background-2fps.gif",background_pics,delayTime)
+
+    %Background Image
+    var background_img : int := Pic.FileNew("bg.jpg")
+    var background_img_sprite : int := Sprite.New(background_img)
+    Sprite.SetPosition(background_img_sprite,0,0,false)  
 
 var background_slider_sprite : int := Sprite.New(background_pics(1))
 Sprite.SetPosition(background_slider_sprite,0,0,false)
@@ -1340,6 +1341,8 @@ loop
         Sprite.Hide(logo_sprite)
         Sprite.Hide(scores_sprite)
         Sprite.Hide(play_sprite)
+        Sprite.Hide(background_slider_sprite)
+        Sprite.Hide(background_img_sprite)
     end if
 % Player Based Procedures(only run once)
     mousewhere(mousex,mousey,button)
