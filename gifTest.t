@@ -1,9 +1,8 @@
-    %%%%% Bonus %%%%%
-% Add sitting animations
+%Written by Mark Mckessock for ICS3UG
 
-%When an enemy sees player save their location and navigate to it then search or return to loop
 View.Set("graphics:1260,900,offscreenonly,nocursor") % Release
-%View.Set("graphics:1260,900") % Release
+Pic.ScreenLoad("_img/loading_crop.jpg",0,0,0)
+View.Update
 const mainLevel :int := Pic.FileNew("mainLevel.jpg")
 var reset_time : int := Time.Elapsed
 type vector:
@@ -23,8 +22,12 @@ record
     y : int
 end record
 var debug : boolean := false
+var accept_input : boolean := true
 var debug_time : int := Time.Elapsed
 var down_arrow :int := Pic.FileNew("go_down.gif")
+var left_arrow :int := Pic.FileNew("go_left.gif")
+var right_arrow :int := Pic.FileNew("go_right.gif")
+var road_img : int := Pic.FileNew("road.jpg")
 type parent_type:
     record
         enemy1 : coordinate
@@ -43,6 +46,9 @@ type score:
         player_last_name : string
     end record
 var scores : array 1 .. 11 of score
+
+Draw.FillBox(500,200,600,300,white)
+View.Update
 
 type enemyType:
 record
@@ -133,9 +139,15 @@ var eKill1IMG : int := Pic.FileNew("enemy_dead_guts.gif")
 var eKill1SPR : int := Sprite.New(eKill1IMG)
 var enemyDead : boolean := false
 var inputEffects :array 1 .. 4 of inputEffect := init(init('a', init(6, 0)), init('d', init(-6, 0)), init('w', init(0, -6)), init('s', init(0,6)))
+var delayTime,delayTime2 : int
 var key :array char of boolean
 var bullet_img : array 1 .. 8 of int
 var lastInputCheck :int := 0
+var num_frames_van : int := Pic.Frames("van.gif")
+var van_frames : array 1 .. num_frames_van of int
+Pic.FileNewFrames("van1.gif",van_frames,delayTime)
+var van_sprite := Sprite.New(van_frames(num_frames_van))
+var current_van_frame : int := num_frames_van
 var lastFrame : int := 0
 var lastEnemyFrame : int := 0
 var playerDirection : int
@@ -143,9 +155,10 @@ var postMove : vector
     var scores_sprite : int 
 var player_num_frames := Pic.Frames ("player_walk_new.gif")
 var enemy_num_frames := Pic.Frames ("enemy_shoot_0.gif")
-var delayTime,delayTime2 : int
+
 var test : int := Pic.FileNew("sprPWalkDoubleBarrel_0.bmp")
 const num_enemies : int := 4
+var end_animate : boolean := false
 var enemy : array 1 .. num_enemies of enemyType
 var logo_sprite : int
 var enemy1Q : flexible array 1 .. 0 of arrayElement
@@ -162,10 +175,11 @@ var map1 : int := Pic.FileNew("mainLevel.jpg")
 var ratio, angle : real
 var font1 : int := Font.New("serif:12")
 var font2 : int := Font.New("serif:50")
+var font3 : int := Font.New("sans serif:25")
 var playerFrame : int := 1
 var play_sprite : int
 var enemyFrame : int := 1
-
+var mouseX,mouseY : int
 var bulletPos : array 1 .. 3 of vector
 enemy(1).x := 0
 enemy(2).x := 0
@@ -179,7 +193,7 @@ var sightRange : int := 300
 var dist : real
 var playerRoom : string := ""
 
-var walls : array 1 .. 27 of wall
+var walls : array 1 .. 30 of wall
 var shootDirection : int := 0
 speed := 2
 x := -942
@@ -234,6 +248,8 @@ proc reset_game_vars
         enemy(i).timeOnTarget := 0
         enemy(i).enemyPath := false
         enemy(i).init_shoot_dir := true
+        accept_input := true
+        end_animate := false
         resetAStar(i)
         for j : 1 .. upper(enemy(i).path)
             enemy(i).path(j).x := 0
@@ -270,6 +286,7 @@ var player_walk_frames_270 : array 1 .. player_num_frames of int
 Pic.FileNewFrames("player_walk_new_270.gif",player_walk_frames_270,delayTime)
 var player_walk_frames_315 : array 1 .. player_num_frames of int
 Pic.FileNewFrames("player_walk_new_315.gif",player_walk_frames_315,delayTime)
+
 var player_dead_pics : array 1 .. 3 of int
 player_dead_pics(1) := Pic.FileNew("_img/player_dead_1.gif")
 player_dead_pics(2) := Pic.FileNew("_img/player_dead_2.gif")
@@ -316,12 +333,12 @@ end for
     */
 process play_audio(track_name : string)
     if track_name = "Game" then
-        Music.PlayFile("_audio/05 - Vengeance.mp3")
+        Music.PlayFileLoop("_audio/05 - Vengeance.mp3")
     elsif track_name = "gunshot" then
         Music.PlayFile("_audio/shotgunFire.mp3")
         Music.PlayFile("_audio/shotgunReload.mp3")
     elsif track_name = "menu" then
-        Music.PlayFile("_audio/03 - Paris.mp3")
+        Music.PlayFileLoop("_audio/03 - Paris.mp3")
     end if
 end play_audio 
 
@@ -541,6 +558,21 @@ function collisionDetect (x,y: int,character : boolean) : boolean %checks if the
     walls(27).x.upper := 1829 + camera.x
     walls(27).y.lower := 2175  + camera.y
     walls(27).y.upper := 2604  + camera.y
+    % Left side of van
+    walls(28).x.lower := 1369 + camera.x
+    walls(28).x.upper := 1575 + camera.x
+    walls(28).y.lower := -120  + camera.y
+    walls(28).y.upper := 110  + camera.y
+    % Right side of van
+    walls(29).x.lower := 1640 + camera.x
+    walls(29).x.upper := 1846 + camera.x
+    walls(29).y.lower := -120  + camera.y
+    walls(29).y.upper := 110  + camera.y
+    % Bottom of van
+    walls(30).x.lower := 1575 + camera.x
+    walls(30).x.upper := 1640 + camera.x
+    walls(30).y.lower := -120  + camera.y
+    walls(30).y.upper := -41  + camera.y
     
     postMove.x := x
     postMove.y := y
@@ -563,8 +595,11 @@ function collisionDetect (x,y: int,character : boolean) : boolean %checks if the
         end for
     end if
     
-    for i : 1 .. upper(walls)
-        if postMove.x > walls(i).x.lower and postMove.x < walls(i).x.upper and postMove.y >  walls(i).y.lower and postMove.y < walls(i).y.upper then
+    for i : 1 .. upper(walls) 
+        if postMove.x > walls(i).x.lower and 
+        postMove.x < walls(i).x.upper and 
+        postMove.y >  walls(i).y.lower and 
+        postMove.y < walls(i).y.upper then
             result true
         end if
     end for
@@ -595,8 +630,9 @@ proc draw
     end for
 end draw
 draw
-
+    
 procedure movement
+    if accept_input then
     Input.KeyDown(key)
     if Time.Elapsed - lastInputCheck > 15 then
         lastInputCheck := Time.Elapsed
@@ -609,8 +645,75 @@ procedure movement
             end if
         end for 
     end if 
+    end if
     cls
     Pic.Draw(mainLevel, spongebobPos.x + camera.x, spongebobPos.y + camera.y, picCopy)
+    %Pic.Draw(road_img,1577+camera.x,60+camera.x,0)  
+    Pic.Draw(road_img,900+camera.x,-370+camera.y,0)  
+    Pic.Draw(road_img,2340+camera.x,-370+camera.y,0)  
+    Pic.Draw(road_img,-540+camera.x,-370+camera.y,0)
+    Pic.Draw(road_img,3780+camera.x,-370+camera.y,0)  
+    Pic.Draw(road_img,5220+camera.x,-370+camera.y,0)
+    level_time := Time.Elapsed - start_time
+    if level_time < 1000 then
+        Font.Draw("00:00:"+intstr(level_time),0,maxy-30,font3,black)
+    elsif level_time < 60000 then
+        if level_time div 1000 < 10 then
+            Font.Draw("00:"+"0"+intstr(level_time div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),0,maxy-30,font3,black)
+        else 
+            Font.Draw("00:"+intstr(level_time div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),0,maxy-30,font3,black)
+        end if
+    elsif level_time > 60000 then
+        if(level_time -((level_time div 60000) * 60000))div 1000 < 10 then
+            Font.Draw(intstr(level_time div 60000)+":"+"0"+intstr((level_time -((level_time div 60000) * 60000))div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),0,maxy-30,font3,black)
+        else
+            Font.Draw(intstr(level_time div 60000)+":"+intstr((level_time -((level_time div 60000) * 60000))div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),0,maxy-30,font3,black)
+        end if
+    end if
+    if enemy(1).dead = false or enemy(2).dead = false or enemy(3).dead = false or enemy(4).dead = false or (maxx div 2 - camera.x >= 1577 and maxx div 2 - camera.x<= 1637 and maxy div 2 - camera.y <= - 37) = false then
+        if end_animate = false then
+        Sprite.Animate(van_sprite,van_frames(num_frames_van),1350+camera.x,-100+camera.y,false)
+        Sprite.SetHeight(van_sprite,10)
+        Sprite.Show(van_sprite)
+        end if
+    end if
+    if enemy(1).dead and enemy(2).dead and enemy(3).dead and enemy(4).dead then
+        Font.Draw("You Win!",maxx div 2-150,maxy div 2+70,font2,black)
+        Font.Draw("Get out!",maxx div 2-120,maxy div 2+20,font2,black)
+        %1577,59
+        if (maxx div 2 - camera.x >= 1577 and maxx div 2 - camera.x<= 1637 and maxy div 2 - camera.y <= - 37)  or end_animate then
+            end_animate := true
+            Sprite.Hide(player)
+            accept_input := false
+                camera.x -= 20
+                delay(45)
+            if current_van_frame > 1 then
+                current_van_frame -= 1
+            end if            
+            Sprite.Animate(van_sprite,van_frames(current_van_frame),maxx div 2-10,maxy div 2+40,true)
+        else
+            if 1577 + camera.x > 50 and 1755 + camera.x < (maxx+50)then
+                if 60 + camera.y > 0 then
+                    Pic.Draw(down_arrow,1577+camera.x,60+camera.y,2)
+                else
+                    Pic.Draw(down_arrow,1577+camera.x,0,2)
+                end if
+            elsif 1577 + camera.x <= 50 then
+                if 60 + camera.y > 0 then
+                    Pic.Draw(left_arrow,50,60+camera.y,2)
+                else
+                    Pic.Draw(down_arrow,50,0,2)
+                end if
+            elsif 1577 + camera.x >= (maxx - 150) then
+                if 60 + camera.y > 0 then
+                    Pic.Draw(right_arrow,maxx-150,60+camera.y,2)
+                else
+                    Pic.Draw(down_arrow,maxx-150,0,2)
+                end if
+            end if
+        end if
+        View.Update
+    end if
     if debug then
     Font.Draw("Enemy #1: ",0,maxy-20,font1,white)
     Font.Draw("Position: X: "+intstr(enemy(1).x) + " Y: " + intstr(enemy(1).y),0,maxy-40,font1,white)
@@ -661,6 +764,8 @@ procedure movement
     Font.Draw("Enemy count: " + intstr(enemy(2).count),0,maxy-440,font1,white)
     Font.Draw("Player Room " + playerRoom,0,400,font1,black)
     Font.Draw("Player X: " + intstr(maxx div 2 - camera.x) + " Y: " + intstr(maxy div 2 - camera.y),0,370,font1,white)
+    Font.Draw("X: "+intstr(camera.x)+ " Y: "+intstr(camera.y),0,350,font1,white)
+    Font.Draw("Val: "+intstr(1577+camera.x) + " " + intstr(maxx),0,330,font1,white)
     end if
     View.Update
     
@@ -789,7 +894,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX+1,enemy(enemyNum).openY).parent.enemy1.y := enemy(enemyNum).openY
                 enemy1Q(upper(enemy1Q)).fScore := round( 8*(abs(enemy(enemyNum).openX+1 - enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY   - enemy(enemyNum).goal.y)) + abs(enemy(enemyNum).openX+1 - enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY   - enemy(enemyNum).start.y))
                 enemy1Q(upper(enemy1Q)).direction := "up"
-                put enemy1Q(upper(enemy1Q)).fScore
             end if
         end if
         %Down Tile
@@ -802,7 +906,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX-1,enemy(enemyNum).openY).parent.enemy1.y := enemy(enemyNum).openY
                 enemy1Q(upper(enemy1Q)).fScore := round( 8*(abs((enemy(enemyNum).openX-1)-enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).goal.y)) + (abs((enemy(enemyNum).openX-1)-enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).start.y)))
                 enemy1Q(upper(enemy1Q)).direction := "down"
-                put enemy1Q(upper(enemy1Q)).fScore
             end if
         end if
         %Left Tile
@@ -815,7 +918,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX,enemy(enemyNum).openY+1).parent.enemy1.y := enemy(enemyNum).openY
                 enemy1Q(upper(enemy1Q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).start.y)))
                 enemy1Q(upper(enemy1Q)).direction := 'left'
-                put "fscore ", enemy1Q(upper(enemy1Q)).fScore
             end if
         end if
         %Right Tile
@@ -828,7 +930,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX,enemy(enemyNum).openY-1).parent.enemy1.y := enemy(enemyNum).openY
                 enemy1Q(upper(enemy1Q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).start.y)))
                  enemy1Q(upper(enemy1Q)).direction := 'left'
-                put "fscore ", enemy1Q(upper(enemy1Q)).fScore
             end if
         end if
         if enemy(enemyNum).goal.x not= enemy(enemyNum).openX then
@@ -961,7 +1062,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 abs(enemy(enemyNum).openX+1 - enemy(enemyNum).start.x) + 
                 abs(enemy(enemyNum).openY   - enemy(enemyNum).start.y))
                 enemy2Q(upper(enemy2Q)).direction := 'up'
-                put enemy2Q(upper(enemy2Q)).fScore
             end if
         end if
         %Down Tile
@@ -974,7 +1074,6 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX-1,enemy(enemyNum).openY).parent.enemy2.y := enemy(enemyNum).openY
                 enemy2Q(upper(enemy2Q)).fScore := round( 8*(abs((enemy(enemyNum).openX-1)-enemy(enemyNum).goal.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).goal.y)) + (abs((enemy(enemyNum).openX-1)-enemy(enemyNum).start.x) + abs(enemy(enemyNum).openY-enemy(enemyNum).start.y)))
                 enemy2Q(upper(enemy2Q)).direction := 'down'
-                put enemy2Q(upper(enemy2Q)).fScore
             end if
         end if
         %Left Tile
@@ -987,7 +1086,7 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX,enemy(enemyNum).openY+1).parent.enemy2.y := enemy(enemyNum).openY
                 enemy2Q(upper(enemy2Q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY+1)-enemy(enemyNum).start.y)))
                 enemy2Q(upper(enemy2Q)).direction := 'left'
-                put enemy2Q(upper(enemy2Q)).fScore
+                %put enemy2Q(upper(enemy2Q)).fScore
             end if
         end if
         %Right Tile
@@ -1000,7 +1099,7 @@ proc aStar(startX,startY,goalX,goalY,enemyNum:int)
                 grid(enemy(enemyNum).openX,enemy(enemyNum).openY-1).parent.enemy2.y := enemy(enemyNum).openY
                 enemy2Q(upper(enemy2Q)).fScore := round( 8*(abs(enemy(enemyNum).openX-enemy(enemyNum).goal.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).goal.y)) + (abs(enemy(enemyNum).openX-enemy(enemyNum).start.x) + abs((enemy(enemyNum).openY-1)-enemy(enemyNum).start.y)))
                 enemy2Q(upper(enemy2Q)).direction := 'right'
-                put enemy2Q(upper(enemy2Q)).fScore
+                %put enemy2Q(upper(enemy2Q)).fScore
             end if
         end if
         if enemy(enemyNum).goal.x not= enemy(enemyNum).openX then
@@ -1687,7 +1786,6 @@ proc playerShoot
         resetAStar(2)
         resetAStar(3)
         resetAStar(4)
-        fork play_audio("Game")
     end if
     if shoot then
         if shootDirection not= playerDirection and shootDirection not= 0 then
@@ -1924,30 +2022,32 @@ end if
 end enemyShooting
 
 proc enemyReact(enemyNum : int)
-if enemy(enemyNum).eyesOn then
-enemy(enemyNum).pLast.x := maxx div 2 - camera.x
-enemy(enemyNum).pLast.y := maxy div 2 - camera.y
-end if
-if enemy(enemyNum).eyesOn then
-enemyShooting(enemyNum)
-end if
-if enemy(enemyNum).eyesOn = false then
-enemy(enemyNum).bulletPos.x := enemy(enemyNum).x
-enemy(enemyNum).bulletPos.y := enemy(enemyNum).y
-if enemy(enemyNum).pLast.x not= -1 then
-enemy(enemyNum).status := "neutral"
-aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).pLast.x,enemy(enemyNum).pLast.y,enemyNum)
-end if    
-end if
-if shoot or enemy(enemyNum).noiseSearch and enemy(enemyNum).eyesOn = false then
-enemy(enemyNum).noiseSearch := true
-if enemy(enemyNum).setPlayerPos then
-enemy(enemyNum).tempPX := maxx div 2 - camera.x
-enemy(enemyNum).tempPY := maxy div 2 - camera.y
-enemy(enemyNum).setPlayerPos := false
-end if
-aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).tempPX,enemy(enemyNum).tempPY,enemyNum)
-end if
+    if enemy(enemyNum).eyesOn then
+        enemy(enemyNum).pLast.x := maxx div 2 - camera.x
+        enemy(enemyNum).pLast.y := maxy div 2 - camera.y
+    end if
+    if enemy(enemyNum).eyesOn then
+        enemyShooting(enemyNum)
+    end if
+    if enemy(enemyNum).eyesOn = false then
+        enemy(enemyNum).bulletPos.x := enemy(enemyNum).x
+        enemy(enemyNum).bulletPos.y := enemy(enemyNum).y
+        if enemy(enemyNum).pLast.x not= -1 and playerRoom ~= 'outside' then
+            enemy(enemyNum).status := "neutral"
+            aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).pLast.x,enemy(enemyNum).pLast.y,enemyNum)
+        end if    
+    end if
+    if shoot or enemy(enemyNum).noiseSearch and enemy(enemyNum).eyesOn = false then
+        enemy(enemyNum).noiseSearch := true
+        if enemy(enemyNum).setPlayerPos then
+            enemy(enemyNum).tempPX := maxx div 2 - camera.x
+            enemy(enemyNum).tempPY := maxy div 2 - camera.y
+            enemy(enemyNum).setPlayerPos := false
+        end if
+        if playerRoom ~= "outside" then
+            aStar(enemy(enemyNum).x,enemy(enemyNum).y,enemy(enemyNum).tempPX,enemy(enemyNum).tempPY,enemyNum)
+        end if
+    end if
 end enemyReact
 
 %Declare Menu Gifs
@@ -2040,12 +2140,14 @@ proc score_screen(mode:string)
         Sprite.Hide(enemy(i).SPR)
         Sprite.Hide(enemy(i).bullet)
     end for
+    Sprite.Show(scores_sprite)
     Sprite.Hide(bulletSPR)
     Sprite.Hide(player)
     Sprite.Hide(logo_sprite)
     Sprite.Hide(play_sprite)
     Sprite.Hide(background_img_sprite)
-    %Sprite.Hide(scores_sprite)
+    Sprite.Hide(van_sprite)
+    Sprite.SetPosition(scores_sprite,maxx div 2+200,maxy - 50,true)
     Sprite.Hide(quit_sprite)
     Pic.Draw(background_img,0,0,0)
     var key_delay : int := Time.Elapsed
@@ -2067,14 +2169,23 @@ proc score_screen(mode:string)
             scores(11).time_string := "00:"+intstr(scores(11).miliseconds div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
         elsif scores(11).miliseconds > 60000 then
             if scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000) < 10000 then
-                scores(11).time_string :=intstr(scores(11).miliseconds div 60000)+":0"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                if ((scores(11).miliseconds div 60000) * 60000) < 10 then
+                    scores(11).time_string := "0"+intstr(scores(11).miliseconds div 60000)+":0"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                else
+                    scores(11).time_string := intstr(scores(11).miliseconds div 60000)+":0"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                end if
             else
-                scores(11).time_string :=intstr(scores(11).miliseconds div 60000)+":"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                if ((scores(11).miliseconds div 60000) * 60000) < 10 then
+                    scores(11).time_string := "0"+intstr(scores(11).miliseconds div 60000)+":"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                else
+                    scores(11).time_string := intstr(scores(11).miliseconds div 60000)+":"+intstr((scores(11).miliseconds -((scores(11).miliseconds div 60000) * 60000))div 1000)+":"+ intstr((scores(11).miliseconds-(scores(11).miliseconds div 1000)*1000))
+                end if
             end if
         end if
         loop
-            Font.Draw(scores(11).player_first_name,maxx div 2,maxy div 2 - 100,font2,black)
-            Font.Draw("Please enter your first name: ",maxx div 2,maxy div 2,font2,black)
+            Sprite.SetPosition(scores_sprite,maxx div 2,maxy - 50,true)
+            Font.Draw(scores(11).player_first_name,maxx div 2-100,maxy div 2 + 100,font2,blue)
+            Font.Draw("Please enter your first name: ",maxx div 2-400,maxy div 2+200,font2,black)
             get_char(scores(11).player_first_name)
             if type_exit = true then
                 type_exit := false
@@ -2084,8 +2195,8 @@ proc score_screen(mode:string)
             cls
             Pic.Draw(background_img,0,0,0)
         loop
-            Font.Draw(scores(11).player_last_name,maxx div 2,maxy div 2 - 100,font2,black)
-            Font.Draw("Please enter your last name: ",maxx div 2,maxy div 2,font2,black)
+            Font.Draw(scores(11).player_last_name,maxx div 2-200,maxy div 2 + 100,font2,blue)
+            Font.Draw("Please enter your last name: ",maxx div 2-400,maxy div 2+200,font2,black)
             get_char(scores(11).player_last_name)
             if type_exit = true then
                 type_exit := false
@@ -2106,14 +2217,17 @@ proc score_screen(mode:string)
     close : file_num
     end if
     cls
+    Sprite.SetPosition(scores_sprite,maxx div 2+200,maxy - 50,true)
     Pic.Draw(background_img,0,0,0)
-    Font.Draw("Name:    Time:",50,maxy - 200,font2,black)
-    Font.Draw("________________________________________",50,maxy - 220,font2,black)
+    Font.Draw("Name:    Time:",50,maxy - 110,font2,black)
+    Font.Draw("___________________________________________",0,maxy - 120,font2,black)
     for i : 1..11
         if scores(i).player_first_name ~= "null" then
-            Font.Draw(scores(i).player_first_name + "           " + scores(i).time_string,50,maxy-220-30*i,font1,white)
+            Font.Draw(scores(i).player_first_name,50,maxy-30*i-130,font1,white)
+            Font.Draw(scores(i).time_string,400,maxy-30*i-130,font1,white)
         end if
     end for
+    Font.Draw("Press 'esc' to return to menu.",0,0,font3,black)
     loop
         Input.KeyDown(chars)
         if chars(KEY_ESC) then
@@ -2122,6 +2236,7 @@ proc score_screen(mode:string)
         end if
     end loop
 end score_screen
+var new_game : boolean := true
 proc main_menu
 %View.Set("nooffscreenonly")
 fork play_audio("menu")
@@ -2138,7 +2253,7 @@ Sprite.Hide(enemy(1).bullet)
 Sprite.Hide(enemy(2).bullet)
 Sprite.Hide(enemy(3).bullet)
 Sprite.Hide(enemy(4).bullet)
-
+Sprite.SetPosition(scores_sprite,maxx div 2, maxy div 2-25,true)
 
 menu_selection := 1
 colorback(red)
@@ -2205,6 +2320,7 @@ end if
 end if
 if menu_selection = 1 and chars(KEY_ENTER) then
 menu_exit := true
+new_game := true
 %Randomize game
 for i : 1 .. num_enemies
     resetAStar(i)
@@ -2215,6 +2331,7 @@ start_time := Time.Elapsed
 exit
 elsif menu_selection =2 and chars(KEY_ENTER) then
     score_screen('null')
+    Sprite.SetPosition(scores_sprite,maxx div 2, maxy div 2-25,true)
 elsif menu_selection = 3 and chars(KEY_ENTER) then
 Window.Hide(Window.GetActive)
 quit
@@ -2227,15 +2344,25 @@ end main_menu
 main_menu
 start_time := Time.Elapsed
 loop
+    if new_game then
+        fork play_audio("Game")
+        new_game := false
+    end if
     colorback(purple)
     View.Set("offscreenonly")
-    level_time := Time.Elapsed - start_time
-    if level_time < 1000 then
-        Font.Draw("00:00:"+intstr(level_time),100,500,font1,black)
-    elsif level_time < 60000 then
-        Font.Draw("00:"+intstr(level_time div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),100,500,font1,black)
-    elsif level_time > 60000 then
-        Font.Draw(intstr(level_time div 60000)+":"+intstr((level_time -((level_time div 60000) * 60000))div 1000)+":"+ intstr((level_time-(level_time div 1000)*1000)),100,500,font1,black)
+    Sprite.Show(van_sprite)
+    if enemy(1).dead and enemy(2).dead and enemy(3).dead and enemy(4).dead and camera.x < -3500 then
+        score_screen('win')
+        main_menu
+    end if
+    if chars('1') then
+        enemy(1).dead := true
+    elsif chars('2') then
+        enemy(2).dead := true
+    elsif chars('3') then
+        enemy(3).dead := true
+    elsif chars('4') then
+        enemy(4).dead := true
     end if
     View.Update
     if menu_exit then
@@ -2249,10 +2376,12 @@ loop
         Sprite.Show(player)
     end if
     % Player Based Procedures(only run once)
-    mousewhere(mousex,mousey,button)
+    mousewhere(mouseX,mouseY,button)
     playerAnimate
     movement
-    playerShoot
+    if end_animate = false then
+        playerShoot
+    end if
     playerRoom := roomAssign(maxx div 2,maxy div 2)
     Input.KeyDown(chars)
     if Time.Elapsed - reset_time > 300 then
@@ -2268,6 +2397,7 @@ loop
             for j : 1 .. num_enemies
                 Sprite.Hide(enemy(j).bullet)
             end for
+            Music.PlayFileStop
             Sprite.ChangePic(player,player_dead_pics(Rand.Int(1,3)))
             Font.Draw("Press 'r' to restart",maxx div 2,200,font2,black)
             Font.Draw("Press 'esc' to go to menu",maxx div 2,100,font2,black)
@@ -2278,6 +2408,7 @@ loop
                         main_menu
                         exit
                     elsif chars('r') then
+                        new_game := true
                         set_enemy_room
                         reset_game_vars
                         start_time := Time.Elapsed
@@ -2286,25 +2417,6 @@ loop
             end loop
         end if
     end for
-    if enemy(1).dead and enemy(2).dead and enemy(3).dead and enemy(4).dead then
-        Font.Draw("You Win!",maxx div 2,maxy div 2,font2,black)
-        Font.Draw("Get out!",maxx div 2,maxy div 2,font2,black)
-        %1577,59
-        if 1577 + camera.x > 50 and 1755 + camera.x < (maxx - 50) then
-            if 60 + camera.y > 0 then
-                Pic.Draw(down_arrow,1577+camera.x,60+camera.y,2)
-            else
-                Pic.Draw(down_arrow,1577+camera.x,0,2)
-            end if
-        elsif 1577 + camera.x <= 50 then
-            Pic.Draw(down_arrow,50,0,2)
-        elsif 1577 + camera.x >= (maxx - 50) then
-            Pic.Draw(down_arrow,maxx - 50,0,2)
-        end if
-        View.Update
-        %score_screen('win')
-        %main_menu
-    end if
     if chars('`') then
         if Time.Elapsed - debug_time > 400 then
             debug_time := Time.Elapsed
