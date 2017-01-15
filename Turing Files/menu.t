@@ -127,7 +127,6 @@ var new_game : boolean := true
 
 proc main_menu
     fork play_audio("menu")
-
     var logo_frame_count : int := 1
     var logo_increase : boolean := true
     Sprite.Hide(player)
